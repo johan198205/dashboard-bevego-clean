@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model FileUpload {
+  id           String   @id @default(cuid())
+  kind         FileKind
+  originalName String
+  storedPath   String
+  uploadedAt   DateTime @default(now())
+  period       String?
+  active       Boolean  @default(true)
+
+  @@map("file_uploads")
+}
+
+model MetricPoint {
+  id               String    @id @default(cuid())
+  period           String
+  metric           String
+  value            Float
+  weight           Float?
+  source           FileKind
+  createdAt        DateTime  @default(now())
+  groupA           String?
+  groupB           String?
+  groupC           String?
+  periodId         String
+  periodStart      DateTime?
+  periodEnd        DateTime?
+  ingestionBatchId String?
+  superseded       Boolean   @default(false)
+
+  @@unique([periodId, metric, source, groupA, groupB, groupC], name: "unique_metric_period")
+  @@index([period, metric])
+  @@index([metric, period])
+  @@index([groupA, groupB, groupC])
+  @@index([periodId, metric, source])
+  @@index([periodId, superseded])
+  @@map("metric_points")
+}
+
+enum FileKind {
+  AGGREGATED
+  BREAKDOWN
+}
+

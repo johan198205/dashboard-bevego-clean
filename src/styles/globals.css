@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --rbg-muted: #f6f7f9;
+  --rbg-border: #e5e7eb;
+  --rbg-primary: #E01E26;
+}
+
+body {
+  @apply bg-white text-black dark:bg-[#0F1419] dark:text-dark-6;
+}
+
+.card {
+  @apply rounded-lg border border-[color:var(--rbg-border)] bg-white p-4 shadow-sm dark:border-dark-3 dark:bg-gray-dark;
+}
+
+.badge {
+  @apply inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs text-black dark:bg-dark-3 dark:text-dark-6;
+}
+
+.title {
+  @apply text-sm font-medium text-gray-700 dark:text-dark-6;
+}
+
+.value {
+  @apply text-2xl font-semibold text-gray-900 dark:text-white;
+}
+
+/* Consistent height for all filter chips/dropdowns */
+.filter-box {
+  @apply h-12 flex items-center gap-2;
+}
+
+
