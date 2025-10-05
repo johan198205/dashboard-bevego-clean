@@ -492,7 +492,7 @@ export class GA4Client {
 
     // Filter out very low volume referrers and sort
     return referrers
-      .filter(r => r.sessions > 1) // Only show referrers with more than 1 session
+      .filter((r: any) => r.sessions > 1) // Only show referrers with more than 1 session
       .sort((a, b) => b.sessions - a.sessions)
       .slice(0, 10); // Take top 10
   }
