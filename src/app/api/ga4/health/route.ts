@@ -6,6 +6,9 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0; // Always revalidate for health check
 
 export async function GET(req: NextRequest) {
+  const url = new URL(req.url);
+  const debug = url.searchParams.get('debug') === '1';
+
   // Preflight configuration checks
   if (!process.env.GA4_PROPERTY_ID) {
     return new Response(
@@ -34,23 +37,24 @@ export async function GET(req: NextRequest) {
     // eslint-disable-next-line no-console
     console.error('GA4 Health Check error:', error?.message || error);
     const msg = String(error?.message || '');
+    const code = (error && (error.code || error.status || error.response?.status)) || undefined;
     const isDisabled = msg.includes('disabled') || msg.includes('keyDisabled') || msg.includes('accountDisabled');
     const isInvalid = msg.includes('invalid_grant') || msg.includes('invalid_client') || msg.includes('unauthorized_client');
 
     if (isDisabled) {
       return new Response(
-        JSON.stringify({ ok: false, error: 'GA4-nyckel disabled' }),
+        JSON.stringify({ ok: false, error: 'GA4-nyckel disabled', ...(debug ? { raw: msg, code } : {}) }),
         { status: 403, headers: { 'content-type': 'application/json' } }
       );
     }
     if (isInvalid) {
       return new Response(
-        JSON.stringify({ ok: false, error: 'GA4-nyckel ogiltig' }),
+        JSON.stringify({ ok: false, error: 'GA4-nyckel ogiltig', ...(debug ? { raw: msg, code } : {}) }),
         { status: 401, headers: { 'content-type': 'application/json' } }
       );
     }
     return new Response(
-      JSON.stringify({ ok: false, error: 'Upstream GA4-fel' }),
+      JSON.stringify({ ok: false, error: 'Upstream GA4-fel', ...(debug ? { raw: msg, code } : {}) }),
       { status: 502, headers: { 'content-type': 'application/json' } }
     );
   }
