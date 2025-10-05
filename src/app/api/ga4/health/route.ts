@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  if (!process.env.GA4_CLIENT_EMAIL && !process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && !process.env.GA4_SA_JSON) {
+  if (!process.env.GA4_CLIENT_EMAIL && !process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && !process.env.GA4_SA_JSON && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     return new Response(
       JSON.stringify({ ok: false, error: 'GA4 autentisering saknas (saknar credentials env)' }),
       { status: 503, headers: { 'content-type': 'application/json' } }
