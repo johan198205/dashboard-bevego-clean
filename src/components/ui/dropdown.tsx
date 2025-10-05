@@ -44,7 +44,7 @@ export function Dropdown({ children, isOpen, setIsOpen }: DropdownProps) {
 
   useEffect(() => {
     if (isOpen) {
-      triggerRef.current = document.activeElement as HTMLElement;
+      // triggerRef.current = document.activeElement as HTMLElement;
 
       document.body.style.pointerEvents = "none";
     } else {
