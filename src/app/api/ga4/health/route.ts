@@ -59,39 +59,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-import { NextRequest } from 'next/server';
-import { getGA4Client } from '@/lib/ga4';
-
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-
-export async function GET(_req: NextRequest) {
-  if (!process.env.GA4_PROPERTY_ID) {
-    return new Response(JSON.stringify({ ok: false, error: 'GA4 inte konfigurerat (saknar GA4_PROPERTY_ID)' }), { status: 503, headers: { 'content-type': 'application/json' } });
-  }
-  if (!process.env.GA4_CLIENT_EMAIL && !process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && !process.env.GA4_SA_JSON) {
-    return new Response(JSON.stringify({ ok: false, error: 'GA4 autentisering saknas (saknar credentials env)' }), { status: 503, headers: { 'content-type': 'application/json' } });
-  }
-
-  try {
-    const client = getGA4Client();
-    const resp = await (client as any).runReport({
-      property: `properties/${process.env.GA4_PROPERTY_ID}`,
-      dateRanges: [{ startDate: '2024-01-01', endDate: '2024-01-02' }],
-      metrics: [{ name: 'sessions' }],
-      limit: 1
-    });
-    const ok = !!resp;
-    return new Response(JSON.stringify({ ok, rows: (resp as any)?.rows?.length || 0 }), { status: 200, headers: { 'content-type': 'application/json' } });
-  } catch (err: any) {
-    const msg = String(err?.message || err || 'Unknown error');
-    const isDisabled = msg.includes('disabled') || msg.includes('keyDisabled') || msg.includes('accountDisabled');
-    const isInvalid = msg.includes('invalid_grant') || msg.includes('invalid_client') || msg.includes('unauthorized_client');
-    if (isDisabled) return new Response(JSON.stringify({ ok: false, error: 'GA4-nyckel disabled' }), { status: 403, headers: { 'content-type': 'application/json' } });
-    if (isInvalid) return new Response(JSON.stringify({ ok: false, error: 'GA4-nyckel ogiltig' }), { status: 401, headers: { 'content-type': 'application/json' } });
-    return new Response(JSON.stringify({ ok: false, error: 'Upstream GA4-fel' }), { status: 502, headers: { 'content-type': 'application/json' } });
-  }
-}
-
-

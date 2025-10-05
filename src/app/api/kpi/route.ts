@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
         notes: ["Källa: GA4 API (samma som GA4 Dashboard)"],
       });
     } catch (err) {
-      console.error('GA4 MAU API error (no fallback):', err || "Unknown error");
+      console.error('GA4 MAU API error (no fallback):', err?.message || err || "Unknown error");
       return new Response(JSON.stringify({ error: String(err), notes: ["Källa: GA4 API (fel)"] }), {
         status: 502,
         headers: { 'content-type': 'application/json' }
