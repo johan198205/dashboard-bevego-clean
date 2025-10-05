@@ -107,7 +107,6 @@ export default function TimeSeries({ title, metric, range }: Props) {
         <div className="-ml-1 -mr-1 h-40" aria-label={title}>
           <Chart />
         </div>
-        </div>
       )}
       <div className="mt-2 text-xs text-gray-500">{data?.timeseries.length || 0} punkter</div>
     </div>
