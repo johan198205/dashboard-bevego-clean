@@ -175,7 +175,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
     } catch (err) {
       // Fall back to mock if GA4 fails for any reason
       // eslint-disable-next-line no-console
-      console.error("GA4 MAU query failed, falling back to mock:", err?.message || err || "Unknown error");
+      console.error("GA4 MAU query failed, falling back to mock:", (err as any)?.message || err || "Unknown error");
     }
 
     // Mock fallback
