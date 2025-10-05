@@ -105,15 +105,8 @@ export default function TimeSeries({ title, metric, range }: Props) {
         <div className="h-32 w-full bg-gray-100" aria-label="diagram placeholder" />
       ) : (
         <div className="-ml-1 -mr-1 h-40" aria-label={title}>
-          <Chart 
-            options={options} 
-            series={[
-              { name: 'Nuvarande', data: seriesData }, 
-              ...(compareSeries.length ? [{ name: 'Jämförelse', data: compareSeries }] : [])
-            ]} 
-            type="line" 
-            height={160} 
-          />
+          <Chart />
+        </div>
         </div>
       )}
       <div className="mt-2 text-xs text-gray-500">{data?.timeseries.length || 0} punkter</div>

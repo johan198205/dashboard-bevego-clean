@@ -93,21 +93,7 @@ export function WeeksProfitChart({ data }: PropsType) {
   };
   return (
     <div className="-ml-3.5 mt-3">
-      <Chart
-        options={options}
-        series={[
-          {
-            name: "Sales",
-            data: data.sales,
-          },
-          {
-            name: "Revenue",
-            data: data.revenue,
-          },
-        ]}
-        type="bar"
-        height={370}
-      />
+      <Chart />
     </div>
   );
 }

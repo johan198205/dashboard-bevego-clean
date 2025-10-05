@@ -88,10 +88,6 @@ export function DonutChart({ data }: PropsType) {
   };
 
   return (
-    <Chart
-      options={chartOptions}
-      series={data.map((item) => item.amount)}
-      type="donut"
-    />
+    <Chart />
   );
 }

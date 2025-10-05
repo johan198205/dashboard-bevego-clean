@@ -87,21 +87,7 @@ export function PaymentsOverviewChart({ data }: PropsType) {
 
   return (
     <div className="-ml-4 -mr-5 h-[310px]">
-      <Chart
-        options={options}
-        series={[
-          {
-            name: "Received",
-            data: data.received,
-          },
-          {
-            name: "Due",
-            data: data.due,
-          },
-        ]}
-        type="area"
-        height={310}
-      />
+      <Chart />
     </div>
   );
 }

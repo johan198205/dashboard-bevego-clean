@@ -490,7 +490,7 @@ export default function ScorecardDetailsDrawer({ open, onClose, metricId, title,
                       />
                     </div>
                   )}
-                  <Chart options={options as any} series={[{ name: "Nuvarande", data: series }, ...(compare.length ? [{ name: "Jämförelse", data: compare }] : [])]} type="line" height={240} />
+                  <Chart />
                 </div>
               )}
             </SectionCard>
