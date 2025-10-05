@@ -1,0 +1,27 @@
+[
+  {
+    "name": "Dashboard",
+    "status": "Aktiv",
+    "owner": "Frontend Team"
+  },
+  {
+    "name": "User Management",
+    "status": "Aktiv",
+    "owner": "Backend Team"
+  },
+  {
+    "name": "Reports",
+    "status": "Under utveckling",
+    "owner": "Analytics Team"
+  },
+  {
+    "name": "Settings",
+    "status": "Aktiv",
+    "owner": "Frontend Team"
+  },
+  {
+    "name": "Notifications",
+    "status": "Planerad",
+    "owner": "UX Team"
+  }
+]

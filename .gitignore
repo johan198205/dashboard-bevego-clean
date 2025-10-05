@@ -22,6 +22,9 @@ yarn-error.log*
 
 # Service account files
 ga4-service-account.json
-*.json
+# Allow essential config files
+!package.json
+!tsconfig.json
+!*.json
 
 /src/generated/prisma
