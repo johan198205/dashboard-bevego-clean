@@ -143,7 +143,6 @@ export default function CwvTrends({ data, className }: CwvTrendsProps) {
       <div className="-ml-4 -mr-5">
         <Chart />
       </div>
-      </div>
     </div>
   );
 }
