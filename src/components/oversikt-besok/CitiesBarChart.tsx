@@ -189,17 +189,7 @@ export function CitiesBarChart({ data, title = "Top 5 Städer", height = 300 }: 
         <p className="text-sm text-gray-500 dark:text-gray-400">Antal sessions per stad</p>
       </div>
       <div className="-ml-3.5">
-        <Chart
-          options={options}
-          series={[
-            {
-              name: "Sessions",
-              data: chartData.map(item => item.y),
-            },
-          ]}
-          type="bar"
-          height={height}
-        />
+        <Chart />
       </div>
     </div>
   );

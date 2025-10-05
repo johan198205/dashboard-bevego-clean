@@ -74,17 +74,7 @@ export function CampaignVisitorsChart({ data }: PropsType) {
 
   return (
     <div className="-ml-3.5 px-6 pb-1 pt-7.5">
-      <Chart
-        options={options}
-        series={[
-          {
-            name: "Visitors",
-            data,
-          },
-        ]}
-        type="bar"
-        height={230}
-      />
+      <Chart />
     </div>
   );
 }
