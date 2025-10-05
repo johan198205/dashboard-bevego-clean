@@ -69,6 +69,28 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
   const comparisonMode: 'none' | 'yoy' | 'prev' = (range.comparisonMode as any) || (range.compareYoy ? 'yoy' : 'none');
   const debugGa4 = process.env.DEBUG_GA4 === '1';
 
+  // Build GA4 client options from env (no file-based secrets)
+  function getGa4ClientOptions(): any {
+    const clientEmail = process.env.GA4_CLIENT_EMAIL;
+    const privateKey = process.env.GA4_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    const json = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GA4_SA_JSON;
+    if (clientEmail && privateKey) {
+      return { credentials: { client_email: clientEmail, private_key: privateKey } };
+    }
+    if (json) {
+      try {
+        const parsed = JSON.parse(json);
+        if (parsed.private_key && typeof parsed.private_key === 'string') {
+          parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+        }
+        return { credentials: parsed };
+      } catch {
+        return {};
+      }
+    }
+    return {};
+  }
+
   // Note: All data is mock. CONNECT GA4 HERE LATER by swapping implementation per metric.
   const scale = computeScale(filters);
   if (metric === "mau") {
@@ -138,7 +160,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
       // only runs on the server.
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { BetaAnalyticsDataClient } = (eval('require'))("@google-analytics/data");
-      const client = new BetaAnalyticsDataClient();
+      const client = new BetaAnalyticsDataClient(getGa4ClientOptions());
       const extraDims: any[] = [];
       if (filters?.device?.length) extraDims.push({ name: "deviceCategory" });
       if (filters?.channel?.length) extraDims.push({ name: "sessionDefaultChannelGroup" });
@@ -272,7 +294,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
       
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { BetaAnalyticsDataClient } = (eval('require'))("@google-analytics/data");
-      const client = new BetaAnalyticsDataClient();
+      const client = new BetaAnalyticsDataClient(getGa4ClientOptions());
       const extraDims: any[] = [];
       if (filters?.device?.length) extraDims.push({ name: "deviceCategory" });
       if (filters?.channel?.length) extraDims.push({ name: "sessionDefaultChannelGroup" });
@@ -580,7 +602,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
       
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { BetaAnalyticsDataClient } = (eval('require'))("@google-analytics/data");
-      const client = new BetaAnalyticsDataClient();
+      const client = new BetaAnalyticsDataClient(getGa4ClientOptions());
       const extraDims: any[] = [];
       if (filters?.device?.length) extraDims.push({ name: "deviceCategory" });
       if (filters?.channel?.length) extraDims.push({ name: "sessionDefaultChannelGroup" });
@@ -692,7 +714,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
       
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { BetaAnalyticsDataClient } = (eval('require'))("@google-analytics/data");
-      const client = new BetaAnalyticsDataClient();
+      const client = new BetaAnalyticsDataClient(getGa4ClientOptions());
       const extraDims: any[] = [];
       if (filters?.device?.length) extraDims.push({ name: "deviceCategory" });
       if (filters?.channel?.length) extraDims.push({ name: "sessionDefaultChannelGroup" });

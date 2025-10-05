@@ -1,20 +1,8 @@
 import { NextRequest } from "next/server";
+import { getGA4Client } from "@/lib/ga4";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
-function getClient() {
-  // Indirect require to avoid bundling into client
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { BetaAnalyticsDataClient } = (eval('require'))('@google-analytics/data');
-  const clientOptions: any = {};
-  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
-    try { clientOptions.credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON as string); } catch {}
-  } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-    clientOptions.keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  }
-  return new BetaAnalyticsDataClient(clientOptions);
-}
 
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
@@ -23,17 +11,20 @@ export async function GET(req: NextRequest) {
   const propertyId = process.env.GA4_PROPERTY_ID;
 
   if (!propertyId) {
-    return new Response(JSON.stringify({ error: 'Missing GA4_PROPERTY_ID env' }), { status: 400, headers: { 'content-type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'GA4 inte konfigurerat (saknar GA4_PROPERTY_ID)' }), { status: 503, headers: { 'content-type': 'application/json' } });
+  }
+  if (!process.env.GA4_CLIENT_EMAIL && !process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && !process.env.GA4_SA_JSON) {
+    return new Response(JSON.stringify({ error: 'GA4 autentisering saknas (saknar credentials env)' }), { status: 503, headers: { 'content-type': 'application/json' } });
   }
   if (!start || !end) {
     return new Response(JSON.stringify({ error: 'Missing required params: start, end' }), { status: 400, headers: { 'content-type': 'application/json' } });
   }
 
   try {
-    const client = getClient();
+    const client = getGA4Client();
 
     // Timeseries (per day)
-    const [seriesResp] = await client.runReport({
+    const seriesResp = await (client as any).runReport({
       property: `properties/${propertyId}`,
       dateRanges: [{ startDate: start, endDate: end }],
       dimensions: [{ name: 'date' }],
@@ -46,13 +37,13 @@ export async function GET(req: NextRequest) {
       },
       orderBys: [{ dimension: { dimensionName: 'date' } }],
     });
-    const timeseries = (seriesResp.rows || []).map((r: any) => ({
+    const timeseries = ((seriesResp as any).rows || []).map((r: any) => ({
       date: `${r.dimensionValues?.[0]?.value?.slice(0,4)}-${r.dimensionValues?.[0]?.value?.slice(4,6)}-${r.dimensionValues?.[0]?.value?.slice(6,8)}`,
       value: Number(r.metricValues?.[0]?.value || 0),
     }));
 
     // Total for the whole range (no dimensions)
-    const [totalResp] = await client.runReport({
+    const totalResp = await (client as any).runReport({
       property: `properties/${propertyId}`,
       dateRanges: [{ startDate: start, endDate: end }],
       metrics: [{ name: 'activeUsers' }],
@@ -63,7 +54,7 @@ export async function GET(req: NextRequest) {
         }
       },
     });
-    const total = Number(totalResp?.rows?.[0]?.metricValues?.[0]?.value || 0);
+    const total = Number((totalResp as any)?.rows?.[0]?.metricValues?.[0]?.value || 0);
 
     return Response.json({
       metric: 'activeUsers',
@@ -73,10 +64,18 @@ export async function GET(req: NextRequest) {
       timeseries,
       notes: ['Källa: GA4 API – activeUsers'],
     });
-  } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('GA4 activeUsers error:', err || 'Unknown error');
-    return new Response(JSON.stringify({ error: String(err) }), { status: 502, headers: { 'content-type': 'application/json' } });
+  } catch (err: any) {
+    console.error('GA4 activeUsers error:', err?.message || err || 'Unknown error');
+    const msg = String(err?.message || err || 'Unknown error');
+    const isDisabled = msg.includes('disabled') || msg.includes('keyDisabled') || msg.includes('accountDisabled');
+    const isInvalid = msg.includes('invalid_grant') || msg.includes('invalid_client') || msg.includes('unauthorized_client');
+    if (isDisabled) {
+      return new Response(JSON.stringify({ error: 'GA4-nyckel disabled' }), { status: 403, headers: { 'content-type': 'application/json' } });
+    }
+    if (isInvalid) {
+      return new Response(JSON.stringify({ error: 'GA4-nyckel ogiltig' }), { status: 401, headers: { 'content-type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ error: 'Upstream GA4-fel' }), { status: 502, headers: { 'content-type': 'application/json' } });
   }
 }
 

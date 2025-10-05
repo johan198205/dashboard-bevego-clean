@@ -142,6 +142,20 @@ export async function GET(req: NextRequest) {
     if (role && role !== 'Alla') filters.role = role;
     if (unit && unit !== 'Alla') filters.unit = unit;
 
+    // Preflight configuration checks
+    if (!process.env.GA4_PROPERTY_ID) {
+      return new Response(
+        JSON.stringify({ error: 'GA4 inte konfigurerat (saknar GA4_PROPERTY_ID)' }),
+        { status: 503, headers: { 'content-type': 'application/json' } }
+      );
+    }
+    if (!process.env.GA4_CLIENT_EMAIL && !process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON && !process.env.GA4_SA_JSON) {
+      return new Response(
+        JSON.stringify({ error: 'GA4 autentisering saknas (saknar credentials env)' }),
+        { status: 503, headers: { 'content-type': 'application/json' } }
+      );
+    }
+
     const client = getGA4Client();
 
     // Execute all GA4 queries in parallel
@@ -206,38 +220,32 @@ export async function GET(req: NextRequest) {
     return Response.json(payload);
 
   } catch (error: any) {
-    console.error('GA4 Overview API error:', error);
-    
-    // Handle rate limiting specifically
-    const isRateLimit = error.code === 14 || error.message?.includes('429') || error.message?.includes('Too Many Requests');
-    
+    console.error('GA4 Overview API error:', error?.message || error);
+
+    const msg = String(error?.message || '');
+    const isRateLimit = error.code === 14 || msg.includes('429') || msg.includes('Too Many Requests');
+    const isDisabled = msg.includes('disabled') || msg.includes('keyDisabled') || msg.includes('accountDisabled');
+    const isInvalid = msg.includes('invalid_grant') || msg.includes('invalid_client') || msg.includes('unauthorized_client');
+
     if (isRateLimit) {
       return new Response(
         JSON.stringify({ 
           error: 'GA4 API rate limit exceeded',
           details: 'Too many requests. Please wait 1-2 minutes before trying again.',
-          retryAfter: 120 // seconds
+          retryAfter: 120
         }),
-        { 
-          status: 429, 
-          headers: { 
-            'content-type': 'application/json',
-            'Retry-After': '120'
-          } 
-        }
+        { status: 429, headers: { 'content-type': 'application/json', 'Retry-After': '120' } }
       );
     }
-    
-    // Return structured error response for other errors
+    if (isDisabled) {
+      return new Response(JSON.stringify({ error: 'GA4-nyckel disabled' }), { status: 403, headers: { 'content-type': 'application/json' } });
+    }
+    if (isInvalid) {
+      return new Response(JSON.stringify({ error: 'GA4-nyckel ogiltig' }), { status: 401, headers: { 'content-type': 'application/json' } });
+    }
     return new Response(
-      JSON.stringify({ 
-        error: 'Failed to fetch GA4 data',
-        details: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { 'content-type': 'application/json' } 
-      }
+      JSON.stringify({ error: 'Failed to fetch GA4 data' }),
+      { status: 502, headers: { 'content-type': 'application/json' } }
     );
   }
 }

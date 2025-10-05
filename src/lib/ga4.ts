@@ -108,28 +108,38 @@ export class GA4Client {
       ? rawPropertyId
       : `properties/${rawPropertyId}`;
 
-    // Support both env var names for credentials (backwards compatible)
+    // Prefer explicit env vars over file-based credentials
+    const clientEmail = process.env.GA4_CLIENT_EMAIL;
+    const privateKeyRaw = process.env.GA4_PRIVATE_KEY;
     const credentialsJson =
       process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ||
       process.env.GA4_SA_JSON ||
       '';
-    const keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
 
-    // Build client options flexibly
+    // Build client options strictly from env (no file paths)
     const clientOptions: any = {};
-    if (credentialsJson) {
+    if (clientEmail && privateKeyRaw) {
+      const private_key = privateKeyRaw.replace(/\\n/g, '\n');
+      clientOptions.credentials = {
+        client_email: clientEmail,
+        private_key
+      };
+    } else if (credentialsJson) {
       try {
-        clientOptions.credentials = JSON.parse(credentialsJson);
+        const parsed = JSON.parse(credentialsJson);
+        // Normalize private key newlines if needed
+        if (parsed.private_key && typeof parsed.private_key === 'string') {
+          parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+        }
+        clientOptions.credentials = parsed;
       } catch {
         throw new Error(
           'Invalid GOOGLE_APPLICATION_CREDENTIALS_JSON/GA4_SA_JSON format'
         );
       }
-    } else if (keyFilename) {
-      clientOptions.keyFilename = keyFilename;
     } else {
       throw new Error(
-        'Missing GA4 credentials. Set GOOGLE_APPLICATION_CREDENTIALS_JSON (or GA4_SA_JSON) or GOOGLE_APPLICATION_CREDENTIALS'
+        'Missing GA4 credentials. Set GA4_CLIENT_EMAIL and GA4_PRIVATE_KEY, or GOOGLE_APPLICATION_CREDENTIALS_JSON/GA4_SA_JSON'
       );
     }
 
