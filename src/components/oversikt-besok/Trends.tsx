@@ -15,6 +15,7 @@ type Props = {
     engagementRatePct: boolean;
     avgEngagementTimeSec: boolean;
     pageviews: boolean;
+    pagesPerSession: boolean;
   };
 };
 
@@ -38,6 +39,7 @@ export function Trends({ data, activeSeries }: Props) {
     returningUsers: '#991B1B', // Very dark red
     pageviews: '#F23030', // Bright red
     avgEngagementTimeSec: '#FCA5A5', // Lighter red
+    pagesPerSession: '#EF4444', // Medium red
   } as const;
 
   // Custom tooltip
@@ -85,6 +87,13 @@ export function Trends({ data, activeSeries }: Props) {
                 <span className="text-sm font-medium text-gray-900 dark:text-white">{formatNumber(data.pageviews)}</span>
               </div>
             )}
+            {activeSeries?.pagesPerSession && (
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS.pagesPerSession }}></div>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Pages/session:</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">{data.pagesPerSession?.toFixed(1).replace('.', ',') || '0,0'}</span>
+              </div>
+            )}
             {activeSeries?.engagementRatePct !== false && (
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS.engagementRatePct }}></div>
@@ -112,6 +121,7 @@ export function Trends({ data, activeSeries }: Props) {
       { key: 'sessions', enabled: activeSeries?.sessions !== false },
       { key: 'engagedSessions', enabled: activeSeries?.engagedSessions !== false },
       { key: 'engagementRatePct', enabled: !!activeSeries?.engagementRatePct },
+      { key: 'pagesPerSession', enabled: !!activeSeries?.pagesPerSession },
     ];
     const anyEnabled = keys.some(k => k.enabled);
     const effectiveKeys = keys.filter(k => k.enabled);
@@ -151,7 +161,13 @@ export function Trends({ data, activeSeries }: Props) {
                 tickLine={false}
                 axisLine={false}
                 domain={[0, maxCounts]}
-                tickFormatter={(value) => formatNumber(value)}
+                tickFormatter={(value) => {
+                  // Show decimals for Pages/session, integers for others
+                  if (activeSeries?.pagesPerSession && !activeSeries?.sessions && !activeSeries?.engagedSessions) {
+                    return value.toFixed(1).replace('.', ',');
+                  }
+                  return formatNumber(value);
+                }}
               />
               {activeSeries?.engagementRatePct !== false && (
                 <YAxis 
@@ -277,6 +293,20 @@ export function Trends({ data, activeSeries }: Props) {
                   dot={{ fill: COLORS.avgEngagementTimeSec, strokeWidth: 2, r: 3 }}
                   activeDot={{ r: 5, stroke: COLORS.avgEngagementTimeSec, strokeWidth: 2 }}
                   name="Genomsnittlig engagemangstid (sek)"
+                />
+              )}
+
+              {/* Pages per session */}
+              {activeSeries?.pagesPerSession && (
+                <Line
+                  yAxisId="counts"
+                  type="monotone"
+                  dataKey="pagesPerSession"
+                  stroke={COLORS.pagesPerSession}
+                  strokeWidth={2}
+                  dot={{ fill: COLORS.pagesPerSession, strokeWidth: 2, r: 3 }}
+                  activeDot={{ r: 5, stroke: COLORS.pagesPerSession, strokeWidth: 2 }}
+                  name="Pages/session"
                 />
               )}
             </LineChart>

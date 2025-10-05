@@ -245,6 +245,8 @@ export class GA4Client {
     const pageviews = Number(row.metricValues?.[6]?.value || 0);
     const returningUsers = Math.max(0, totalUsers - newUsers);
 
+    const pagesPerSession = sessions > 0 ? pageviews / sessions : 0;
+
     const result = {
       sessions,
       engagedSessions,
@@ -253,6 +255,7 @@ export class GA4Client {
       totalUsers,
       returningUsers,
       pageviews,
+      pagesPerSession,
       sampled: response.sampled || false
     };
 
@@ -293,6 +296,8 @@ export class GA4Client {
       const pageviews = Number(row.metricValues?.[5]?.value || 0);
       const avgEngagementTime = Number(row.metricValues?.[6]?.value || 0);
 
+      const pagesPerSession = sessions > 0 ? pageviews / sessions : 0;
+
       return {
         date: `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`,
         sessions,
@@ -302,6 +307,7 @@ export class GA4Client {
         returningUsers: Math.max(0, totalUsers - newUsers),
         pageviews,
         avgEngagementTimeSec: avgEngagementTime,
+        pagesPerSession
       };
     });
   }
@@ -437,6 +443,58 @@ export class GA4Client {
         engagementRatePct: engagementRate <= 1 ? engagementRate * 100 : engagementRate
       };
     });
+  }
+
+  // Get top referrers (pageReferrer - actual URLs)
+  async getTopReferrers(startDate: string, endDate: string, filters?: any) {
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [
+        { name: 'pageReferrer' }
+      ],
+      metrics: [
+        { name: 'sessions' }
+      ],
+      dimensionFilter: this.buildDimensionFilter(filters),
+      orderBys: [{ 
+        metric: { metricName: 'sessions' },
+        desc: true 
+      }],
+      limit: 20, // Get more to filter out low-volume referrers
+    } as any;
+
+    const response = await this.runReport(request);
+    const rows = response.rows || [];
+
+    const referrers = rows.map((row: any) => {
+      const referrerUrl = row.dimensionValues?.[0]?.value || '(direct)';
+      const sessions = Number(row.metricValues?.[0]?.value || 0);
+      
+      // Clean up the referrer URL for display
+      let displayUrl = referrerUrl;
+      if (referrerUrl === '(direct)' || referrerUrl === '(not set)') {
+        displayUrl = '(direct)';
+      } else if (referrerUrl.startsWith('http')) {
+        // Keep full URL for external referrers
+        displayUrl = referrerUrl;
+      } else {
+        // For other cases, show as-is
+        displayUrl = referrerUrl;
+      }
+      
+      return {
+        key: displayUrl,
+        sessions,
+        engagementRatePct: 0,
+      };
+    });
+
+    // Filter out very low volume referrers and sort
+    return referrers
+      .filter(r => r.sessions > 1) // Only show referrers with more than 1 session
+      .sort((a, b) => b.sessions - a.sessions)
+      .slice(0, 10); // Take top 10
   }
 
   // Get top cities - optimized with pagination

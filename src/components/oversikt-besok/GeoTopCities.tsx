@@ -222,7 +222,7 @@ export function GeoTopCities({ data, onClick }: Props) {
       <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-dark p-6">
         <CitiesBarChart 
           data={allCities} 
-          title="Top 5 Städer"
+          title="Top 10 Städer"
           height={400}
         />
       </div>

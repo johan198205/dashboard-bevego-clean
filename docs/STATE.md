@@ -27,3 +27,25 @@ Nästa steg (tekniska)
 Skapa kontraktstyper, resolver-skeletton, dummy-clients, och minimal tidsserie-widget.
 
 Sätta upp test-rigg med fixtures för GA4.
+
+---
+
+Bevego GA4 – Sektion 3 alignment (signals)
+
+- Trafik & Användare
+  - Signals: `summary.sessions`, `summary.totalUsers`, `summary.returningUsers`, `summary.engagedSessions`, `summary.engagementRatePct`, `summary.avgEngagementTimeSec`, `summary.pageviews`, `timeseries[*]` for samma nycklar.
+  - Reagerar på UI-state: `range(start,end,comparisonMode)`, `channel`, `device`, `audience(role)`, `unit` via `/api/ga4/overview` params.
+
+- Trafikfördelning
+  - Signals: `channels[]`, `devices[]`, `cities[]`, `summary.sessions` (för % av total i donuts/tabeller).
+  - Referral pages Top 10: TODO – saknas i `OverviewPayload`; kräver ny endpoint eller utökad respons (kolumner: Page, Sessions, % av total, Δ period).
+
+- Beteende
+  - Signals: `weekdayHour[]` (heatmap), `timeseries[*]` för mini-trender: `avgEngagementTimeSec`, `engagementRatePct`, beräknad `pagesPerSession = pageviews/sessions`.
+  - Bounce rate: TODO – om signal finns i state, visa total + per vald sektion.
+
+A11y
+- Sektionstitlar är semantiska `<h2>` via `SectionLayout`; grafer/tablåer har titlar via `AnalyticsBlock` och beskrivningar.
+
+Tester
+- Minimal render/snapshot tests: TODO – test-infrastruktur saknas i repo; inför vid nästa steg utan att ändra build-konfigurationen.

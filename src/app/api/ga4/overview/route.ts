@@ -15,6 +15,7 @@ export type Summary = {
   totalUsers?: number;
   returningUsers?: number;
   pageviews?: number;
+  pagesPerSession?: number; // Calculated: pageviews / sessions
   deltasYoY?: {
     sessions: number;
     engagedSessions: number;
@@ -24,6 +25,7 @@ export type Summary = {
     totalUsers?: number;
     returningUsers?: number;
     pageviews?: number;
+    pagesPerSession?: number;
   };
   sampled: boolean;
 };
@@ -32,7 +34,12 @@ export type TimePoint = {
   date: string; 
   sessions: number; 
   engagedSessions: number; 
-  engagementRatePct: number 
+  engagementRatePct: number;
+  totalUsers?: number;
+  returningUsers?: number;
+  pageviews?: number;
+  avgEngagementTimeSec?: number;
+  pagesPerSession?: number; // Calculated: pageviews / sessions
 };
 
 export type Split = { 
@@ -64,6 +71,7 @@ export type OverviewPayload = {
   weekdayHour: WeekdayHour[];
   topPages: TopPage[];
   cities: Split[];
+  referrers?: Split[]; // optional until UI finalized
 };
 
 // Helper function to calculate YoY deltas
@@ -77,6 +85,7 @@ function calculateDeltas(current: any, previous: any) {
   const totalUsersDelta = previous.totalUsers > 0 ? ((current.totalUsers - previous.totalUsers) / previous.totalUsers) * 100 : 0;
   const returningUsersDelta = previous.returningUsers > 0 ? ((current.returningUsers - previous.returningUsers) / previous.returningUsers) * 100 : 0;
   const pageviewsDelta = previous.pageviews > 0 ? ((current.pageviews - previous.pageviews) / previous.pageviews) * 100 : 0;
+  const pagesPerSessionDelta = previous.pagesPerSession > 0 ? ((current.pagesPerSession - previous.pagesPerSession) / previous.pagesPerSession) * 100 : 0;
 
   return {
     sessions: sessionsDelta,
@@ -85,7 +94,8 @@ function calculateDeltas(current: any, previous: any) {
     avgEngagementTimePct: avgEngagementTimeDelta,
     totalUsers: totalUsersDelta,
     returningUsers: returningUsersDelta,
-    pageviews: pageviewsDelta
+    pageviews: pageviewsDelta,
+    pagesPerSession: pagesPerSessionDelta
   };
 }
 
@@ -152,7 +162,8 @@ export async function GET(req: NextRequest) {
       devices,
       weekdayHour,
       topPages,
-      cities
+      cities,
+      referrers
     ] = await Promise.all([
       client.getSummaryKPIs(start, end, filters),
       client.getTimeseries(start, end, filters),
@@ -160,7 +171,8 @@ export async function GET(req: NextRequest) {
       client.getDeviceDistribution(start, end, filters),
       client.getWeekdayHourUsage(start, end, filters),
       client.getTopPages(start, end, filters),
-      client.getTopCities(start, end, filters)
+      client.getTopCities(start, end, filters),
+      client.getTopReferrers(start, end, filters)
     ]);
 
     const summary: Summary = {
@@ -200,7 +212,8 @@ export async function GET(req: NextRequest) {
       devices,
       weekdayHour,
       topPages,
-      cities
+      cities,
+      referrers
     };
 
     return Response.json(payload);

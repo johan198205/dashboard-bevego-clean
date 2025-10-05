@@ -6,6 +6,9 @@ import { Trends } from './Trends';
 import { Distributions } from './Distributions';
 import { UsageHeatmap } from './UsageHeatmap';
 import { GeoTopCities } from './GeoTopCities';
+import SectionLayout from './SectionLayout';
+import ReferralTable from './ReferralTable';
+import { UserTypeDistribution } from './UserTypeDistribution';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, AlertCircle } from 'lucide-react';
@@ -33,6 +36,7 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
     engagementRatePct: boolean;
     avgEngagementTimeSec: boolean;
     pageviews: boolean;
+    pagesPerSession: boolean;
   }>({
     sessions: true,
     totalUsers: false,
@@ -41,6 +45,7 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
     engagementRatePct: false,
     avgEngagementTimeSec: false,
     pageviews: false,
+    pagesPerSession: false,
   });
 
   // Fetch data from API
@@ -271,6 +276,15 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
       return `Peak: ${maxHour}:00 (${hourlyAggregates[maxHour].toLocaleString('sv-SE')} sessions), Lägst: ${minHour}:00 (${hourlyAggregates[minHour].toLocaleString('sv-SE')} sessions)`;
     }
 
+    if (metricId === 'user_types') {
+      const totalUsers = data.summary.totalUsers || 0;
+      const returningUsers = data.summary.returningUsers || 0;
+      const newUsers = Math.max(0, totalUsers - returningUsers);
+      const newUsersPct = totalUsers > 0 ? ((newUsers / totalUsers) * 100).toFixed(1) : '0.0';
+      const returningUsersPct = totalUsers > 0 ? ((returningUsers / totalUsers) * 100).toFixed(1) : '0.0';
+      return `Nya användare: ${newUsers.toLocaleString('sv-SE')} (${newUsersPct}%), Återkommande: ${returningUsers.toLocaleString('sv-SE')} (${returningUsersPct}%)`;
+    }
+
     return '';
   };
 
@@ -318,60 +332,58 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
     return [];
   };
 
-  // Main content
+  // Main content with three sections
   return (
-    <div className="space-y-6">
-      {/* KPI Cards */}
-      <KpiCards 
-        data={data.summary} 
-        activeSeries={activeSeries}
-        onToggleSeries={(key: keyof typeof activeSeries, value: boolean) => setActiveSeries((prev) => ({ ...prev, [key]: value }))}
-      />
-
-      {/* Trends Chart */}
-      <Trends data={data.timeseries} activeSeries={activeSeries} />
-
-      {/* Distributions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Distributions 
-          title="Kanaler"
-          data={data.channels}
-          type="channel"
-          totalSessions={data.summary.sessions}
-          onClick={() => setDrawer({ 
-            metricId: 'channels', 
-            title: 'Kanaler', 
-            sourceLabel: 'GA4',
-            distributionContext: getDistributionContext('channels')
-          })}
+    <div className="space-y-10">
+      <SectionLayout title="Trafik & Användare" description="Standardmetrik för trafik och användare">
+        <KpiCards 
+          data={data.summary} 
+          activeSeries={activeSeries}
+          onToggleSeries={(key: keyof typeof activeSeries, value: boolean) => setActiveSeries((prev) => ({ ...prev, [key]: value }))}
         />
-        <Distributions 
-          title="Enheter"
-          data={data.devices}
-          type="device"
-          totalSessions={data.summary.sessions}
-          onClick={() => setDrawer({ 
-            metricId: 'devices', 
-            title: 'Enheter', 
-            sourceLabel: 'GA4',
-            distributionContext: getDistributionContext('devices')
-          })}
-        />
-      </div>
+        <Trends data={data.timeseries} activeSeries={activeSeries} />
+        
+        {/* User Type Distribution */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <UserTypeDistribution 
+            data={data.summary}
+            onClick={() => setDrawer({ 
+              metricId: 'user_types', 
+              title: 'Användartyper', 
+              sourceLabel: 'GA4',
+              distributionContext: getDistributionContext('user_types')
+            })}
+          />
+        </div>
+      </SectionLayout>
 
-      {/* Usage Heatmap */}
-      <UsageHeatmap 
-        data={data.weekdayHour}
-        onClick={() => setDrawer({ 
-          metricId: 'usage_patterns', 
-          title: 'Användningsmönster', 
-          sourceLabel: 'GA4',
-          distributionContext: getDistributionContext('usage_patterns')
-        })}
-      />
-
-      {/* Cities Table */}
-      <div className="grid grid-cols-1 gap-6">
+      <SectionLayout title="Trafikfördelning" description="Fördelning per kanal och enhet samt geografi">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Distributions 
+            title="Kanaler"
+            data={data.channels}
+            type="channel"
+            totalSessions={data.summary.sessions}
+            onClick={() => setDrawer({ 
+              metricId: 'channels', 
+              title: 'Kanaler', 
+              sourceLabel: 'GA4',
+              distributionContext: getDistributionContext('channels')
+            })}
+          />
+          <Distributions 
+            title="Enheter"
+            data={data.devices}
+            type="device"
+            totalSessions={data.summary.sessions}
+            onClick={() => setDrawer({ 
+              metricId: 'devices', 
+              title: 'Enheter', 
+              sourceLabel: 'GA4',
+              distributionContext: getDistributionContext('devices')
+            })}
+          />
+        </div>
         <GeoTopCities 
           data={data.cities}
           onClick={() => setDrawer({ 
@@ -381,7 +393,21 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
             distributionContext: getDistributionContext('cities')
           })}
         />
-      </div>
+        <ReferralTable data={data.referrers} totalSessions={data.summary.sessions} />
+      </SectionLayout>
+
+      <SectionLayout title="Beteende" description="Användningsmönster och beteendetrender">
+        <UsageHeatmap 
+          data={data.weekdayHour}
+          onClick={() => setDrawer({ 
+            metricId: 'usage_patterns', 
+            title: 'Användningsmönster', 
+            sourceLabel: 'GA4',
+            distributionContext: getDistributionContext('usage_patterns')
+          })}
+        />
+        {/* TODO: Bounce rate – visa total + per vald sektion om signal finns i state */}
+      </SectionLayout>
 
       {/* Data source info */}
       {data.summary.sampled && (

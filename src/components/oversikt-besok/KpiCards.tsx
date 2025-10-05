@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ScoreCard } from '@/components/ui/scorecard';
 import { Switch } from '@/components/FormElements/switch';
-import { Users, MousePointer, TrendingUp, Clock, UserCheck, Eye } from 'lucide-react';
+import { Users, MousePointer, TrendingUp, Clock, UserCheck, Eye, FileText } from 'lucide-react';
 import { formatNumber, formatPercent, formatTime } from '@/utils/format';
 import type { Summary } from '@/app/api/ga4/overview/route';
 import ScorecardDetailsDrawer from '@/components/ScorecardDetailsDrawer';
@@ -19,6 +19,7 @@ type Props = {
     engagementRatePct: boolean;
     avgEngagementTimeSec: boolean;
     pageviews: boolean;
+    pagesPerSession: boolean;
   };
   onToggleSeries?: (key: keyof NonNullable<Props['activeSeries']>, value: boolean) => void;
 };
@@ -101,6 +102,15 @@ export function KpiCards({ data, activeSeries, onToggleSeries }: Props) {
       seriesKey: 'pageviews' as const,
       metricId: 'pageviews',
     },
+    {
+      title: 'Pages/session',
+      value: data.pagesPerSession ?? 0,
+      delta: data.deltasYoY?.pagesPerSession,
+      icon: FileText,
+      description: 'Genomsnittligt antal sidor per session',
+      seriesKey: 'pagesPerSession' as const,
+      metricId: 'pagesPerSession',
+    },
   ];
 
   // getSeries provider per metric: fetch timeseries from GA4 API
@@ -131,6 +141,7 @@ export function KpiCards({ data, activeSeries, onToggleSeries }: Props) {
         else if (metricKey === 'engagementRate') value = pt.engagementRatePct || 0;
         else if (metricKey === 'avgEngagementTime') value = pt.avgEngagementTimeSec || 0;
         else if (metricKey === 'pageviews') value = pt.pageviews || 0;
+        else if (metricKey === 'pagesPerSession') value = pt.pagesPerSession || 0;
         return { x: date.getTime(), y: value };
       });
     };
@@ -176,6 +187,8 @@ export function KpiCards({ data, activeSeries, onToggleSeries }: Props) {
           ? formatTime(kpi.value)
           : kpi.isPercentage
           ? formatPercent(kpi.value)
+          : kpi.metricId === 'pagesPerSession'
+          ? kpi.value.toFixed(1).replace('.', ',')
           : formatNumber(kpi.value);
 
         return (
