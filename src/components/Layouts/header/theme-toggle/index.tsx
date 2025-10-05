@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { useTheme } from "next-themes";
+// import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { Moon, Sun } from "./icons";
 
@@ -15,7 +15,8 @@ const THEMES = [
 ];
 
 export function ThemeToggleSwitch() {
-  const { setTheme, theme } = useTheme();
+  // const { setTheme, theme } = useTheme();
+  const [theme, setTheme] = useState("light");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
