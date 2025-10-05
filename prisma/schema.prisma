@@ -9,7 +9,7 @@ datasource db {
 
 model FileUpload {
   id           String   @id @default(cuid())
-  kind         FileKind
+  kind         String
   originalName String
   storedPath   String
   uploadedAt   DateTime @default(now())
@@ -25,7 +25,7 @@ model MetricPoint {
   metric           String
   value            Float
   weight           Float?
-  source           FileKind
+  source           String
   createdAt        DateTime  @default(now())
   groupA           String?
   groupB           String?
