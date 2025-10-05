@@ -45,8 +45,8 @@ model MetricPoint {
   @@map("metric_points")
 }
 
-enum FileKind {
-  AGGREGATED
-  BREAKDOWN
-}
+// enum FileKind {
+//   AGGREGATED
+//   BREAKDOWN
+// }
 
