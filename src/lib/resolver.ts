@@ -329,7 +329,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("GA4 Pageviews query failed, falling back to mock:", err?.message || err || "Unknown error");
+      console.error("GA4 Pageviews query failed, falling back to mock:", (err as any)?.message || err || "Unknown error");
     }
 
     // Mock fallback
@@ -491,7 +491,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
         };
       }
     } catch (err) {
-      console.error("CrUX CWV Total query failed, falling back to mock:", err?.message || err || "Unknown error");
+      console.error("CrUX CWV Total query failed, falling back to mock:", (err as any)?.message || err || "Unknown error");
     }
     
     // Fallback to mock data if CrUX fails
@@ -616,7 +616,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("GA4 Sessions query failed:", err?.message || err || "Unknown error");
+      console.error("GA4 Sessions query failed:", (err as any)?.message || err || "Unknown error");
       // Fall back to mock data instead of throwing
       const current = scaleSeries(generateTimeseries({ start: range.start, end: range.end, grain }, { base: 1200, noise: 0.1, seedKey: "sessions" }), scale);
       const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
@@ -728,7 +728,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("GA4 Engaged Sessions query failed:", err?.message || err || "Unknown error");
+      console.error("GA4 Engaged Sessions query failed:", (err as any)?.message || err || "Unknown error");
       // Fall back to mock data instead of throwing
       const current = scaleSeries(generateTimeseries({ start: range.start, end: range.end, grain }, { base: 800, noise: 0.1, seedKey: "engagedSessions" }), scale);
       const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
@@ -806,7 +806,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("GA4 Engagement Rate query failed:", err?.message || err || "Unknown error");
+      console.error("GA4 Engagement Rate query failed:", (err as any)?.message || err || "Unknown error");
       // Calculate engagement rate from sessions and engagedSessions instead of using GA4 API
       try {
         // Define the functions locally since they're not in scope here
@@ -1034,7 +1034,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
       }
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error("GA4 Average Engagement Time query failed:", err?.message || err || "Unknown error");
+      console.error("GA4 Average Engagement Time query failed:", (err as any)?.message || err || "Unknown error");
       // Fall back to mock data instead of throwing
       const current = scaleSeries(generateTimeseries({ start: range.start, end: range.end, grain }, { base: 180, noise: 0.1, seedKey: "avgEngagementTime" }), scale);
       const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
