@@ -256,7 +256,7 @@ export default function ScorecardDetailsDrawer({ open, onClose, metricId, title,
   const drawerRef = useRef<HTMLDivElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
 
-  const Chart = useMemo(() => dynamic(() => import("react-apexcharts"), { 
+  const Chart = useMemo(() => dynamic(() => Promise.resolve(() => <div>Chart disabled</div>), { 
     ssr: false,
     loading: () => <div className="h-60 animate-pulse rounded-xl bg-dark-2/10 dark:bg-white/10" />
   }), []);

@@ -21,7 +21,7 @@ export default function TimeSeries({ title, metric, range }: Props) {
     getKpi({ metric, range: effectiveRange, filters: { audience: state.audience, device: state.device, channel: state.channel } }).then(setData);
   }, [metric, range.start, range.end, range.compareYoy, localGrain, state.audience.join(","), state.device.join(","), state.channel.join(",")]);
 
-  const Chart = useMemo(() => dynamic(() => import("react-apexcharts"), { ssr: false }), []);
+  const Chart = useMemo(() => dynamic(() => Promise.resolve(() => <div>Chart disabled</div>), { ssr: false }), []);
 
   const seriesData = useMemo(() => {
     const points = data?.timeseries || [];
