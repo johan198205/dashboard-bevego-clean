@@ -28,3 +28,4 @@ ga4-service-account.json
 !*.json
 
 /src/generated/prisma
+.vercel

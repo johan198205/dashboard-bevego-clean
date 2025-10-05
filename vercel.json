@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/clarity/sync",
+      "schedule": "0 6 * * *"
+    }
+  ]
+}

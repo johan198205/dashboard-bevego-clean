@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { ApexOptions } from 'apexcharts';
 import { formatNumber } from '@/utils/format';
 
-const Chart = dynamic(() => import("react-apexcharts"), {
+const Chart = dynamic(() => Promise.resolve(() => <div>Chart disabled</div>), {
   ssr: false,
 });
 

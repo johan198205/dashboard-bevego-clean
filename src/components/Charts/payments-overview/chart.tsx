@@ -11,7 +11,7 @@ type PropsType = {
   };
 };
 
-const Chart = dynamic(() => import("react-apexcharts"), {
+const Chart = dynamic(() => Promise.resolve(() => <div>Chart disabled</div>), {
   ssr: false,
 });
 
