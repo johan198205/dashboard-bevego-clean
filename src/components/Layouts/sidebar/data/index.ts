@@ -9,11 +9,11 @@ export const NAV_DATA = [
         title: "Översikt",
         icon: Icons.HomeIcon,
         items: [
-          { title: "KPI Dashboard", url: "/" },
+          { title: "Primära KPI:er", url: "/primara-kpi" },
           { title: "GA4 Dashboard", url: "/oversikt/besok" },
         ],
       },
-      { title: "Användning", url: "/anvandning", icon: Icons.Table, items: [] },
+      // { title: "Användning", url: "/anvandning", icon: Icons.Table, items: [] }, // removed per request
       // TODO: Konverteringar section - controlled by FEATURE_FLAGS.conversions
       ...(FEATURE_FLAGS.conversions ? [{ title: "Konverteringar", url: "/konverteringar", icon: Icons.PieChart, items: [] }] : []),
       // { title: "Prestanda", url: "/prestanda", icon: Icons.Table, items: [] }, // Hidden for now
