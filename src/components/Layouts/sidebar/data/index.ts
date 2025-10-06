@@ -10,6 +10,7 @@ export const NAV_DATA = [
         icon: Icons.HomeIcon,
         items: [
           { title: "Primära KPI:er", url: "/primara-kpi" },
+          { title: "Sekundära KPI:er", url: "/sekundara-kpi" },
           { title: "GA4 Dashboard", url: "/oversikt/besok" },
         ],
       },

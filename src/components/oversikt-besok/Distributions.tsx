@@ -21,6 +21,7 @@ type Props = {
   type: 'channel' | 'device';
   totalSessions?: number;
   onClick?: () => void;
+  hideTable?: boolean; // optional: hide the built-in table (used when an external table is shown)
 };
 
 import { riksbyggenChartPalette } from '@/lib/theme-tokens';
@@ -51,7 +52,7 @@ const DEVICE_NAMES: Record<string, string> = {
   'tablet': 'Surfplatta',
 };
 
-export function Distributions({ title, data, type, totalSessions, onClick }: Props) {
+export function Distributions({ title, data, type, totalSessions, onClick, hideTable = false }: Props) {
   // Use provided totalSessions or calculate from data
   const calculatedTotalSessions = data.reduce((sum, item) => sum + item.sessions, 0);
   const finalTotalSessions = totalSessions || calculatedTotalSessions;
@@ -152,62 +153,65 @@ export function Distributions({ title, data, type, totalSessions, onClick }: Pro
         </ResponsiveContainer>
       </div>
 
-      {/* Table */}
-      <div className="max-h-80 overflow-y-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="text-gray-900 dark:text-white font-semibold">{type === 'channel' ? 'Kanal' : 'Enhet'}</TableHead>
-              <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Antal</TableHead>
-              <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Del av totalen</TableHead>
-              <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Föreg. period</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {displayData.map((item) => (
-              <TableRow key={item.key}>
-                <TableCell className="font-medium">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: item.color }}
-                    ></div>
-                    {item.name}
-                  </div>
-                </TableCell>
-                <TableCell className="text-right">
-                  {new Intl.NumberFormat("sv-SE").format(item.sessions)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {formatPercent((item.sessions / finalTotalSessions) * 100)}
-                </TableCell>
-                <TableCell className="text-right">
-                  {item.engagementRatePct !== undefined ? (
-                    <StatusPill 
-                      variant={item.engagementRatePct >= 0 ? "success" : "error"}
-                      size="sm"
-                    >
-                      {item.engagementRatePct >= 0 ? "+" : ""}{item.engagementRatePct.toFixed(1)}%
-                    </StatusPill>
-                  ) : (
-                    <span className="text-neutral-400">–</span>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {/* Total */}
-      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="flex justify-between items-center">
-          <span className="font-medium text-gray-900 dark:text-white">Totalt:</span>
-            <span className="font-medium text-gray-900 dark:text-white">
-              {formatNumber(finalTotalSessions)} sessions
-            </span>
-        </div>
-      </div>
+      {/* Optional Table */}
+      {hideTable ? null : (
+        <>
+          <div className="max-h-80 overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-gray-900 dark:text-white font-semibold">{type === 'channel' ? 'Kanal' : 'Enhet'}</TableHead>
+                  <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Antal</TableHead>
+                  <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Del av totalen</TableHead>
+                  <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Föreg. period</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {displayData.map((item) => (
+                  <TableRow key={item.key}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: item.color }}
+                        ></div>
+                        {item.name}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {new Intl.NumberFormat("sv-SE").format(item.sessions)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {formatPercent((item.sessions / finalTotalSessions) * 100)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {item.engagementRatePct !== undefined ? (
+                        <StatusPill 
+                          variant={item.engagementRatePct >= 0 ? "success" : "error"}
+                          size="sm"
+                        >
+                          {item.engagementRatePct >= 0 ? "+" : ""}{item.engagementRatePct.toFixed(1)}%
+                        </StatusPill>
+                      ) : (
+                        <span className="text-neutral-400">–</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          {/* Total */}
+          <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center">
+              <span className="font-medium text-gray-900 dark:text-white">Totalt:</span>
+                <span className="font-medium text-gray-900 dark:text-white">
+                  {formatNumber(finalTotalSessions)} sessions
+                </span>
+            </div>
+          </div>
+        </>
+      )}
     </AnalyticsBlock>
     </div>
   );
