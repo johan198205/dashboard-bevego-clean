@@ -83,7 +83,7 @@ export default function ChannelsBlock() {
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Donut via existing Distributions component */}
-        <Distributions title="Topp 5 kanaler" data={(channels as any[]).map(c => ({ key: c.key, sessions: c.sessions }))} type="channel" totalSessions={totalSessions} hideTable />
+        <Distributions title="Topp 5 kanaler" data={(channels as any[]).map(c => ({ key: c.key, sessions: c.sessions, engagementRatePct: 0 }))} type="channel" totalSessions={totalSessions} hideTable />
 
         {/* Sortable table */}
         <div className="card p-4">
