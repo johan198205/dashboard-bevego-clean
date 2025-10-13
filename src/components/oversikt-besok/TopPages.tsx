@@ -22,7 +22,7 @@ export function TopPages({ data }: Props) {
   const [showTop5, setShowTop5] = useState(false);
 
   // Sort data
-  const sortedData = [...data].sort((a, b) => {
+  const sortedData = Array.isArray(data) ? [...data].sort((a, b) => {
     const aValue = a[sortField];
     const bValue = b[sortField];
     
@@ -31,7 +31,7 @@ export function TopPages({ data }: Props) {
     } else {
       return bValue - aValue;
     }
-  });
+  }) : [];
 
   // Filter to top 5 if requested
   const displayData = showTop5 ? sortedData.slice(0, 5) : sortedData;

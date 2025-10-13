@@ -3,7 +3,6 @@ import { useBusinessKpis } from "@/hooks/useBusinessKpis";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { ScoreCard } from "@/components/ui/scorecard";
 import { UserIcon, GlobeIcon, TrendingUpIcon, CheckIcon } from "@/assets/icons";
-import InfoTooltip from "@/components/InfoTooltip";
 import {
   Table,
   TableBody,
@@ -94,7 +93,6 @@ export function EfficiencyBlock() {
           <span className="text-xs text-gray-500 dark:text-gray-400">
             Källa: GA4 API
           </span>
-          <InfoTooltip text="Data från Google Analytics 4 med affärslogik-mappning" />
         </div>
       </div>
 
@@ -111,9 +109,6 @@ export function EfficiencyBlock() {
             className="min-h-[208px]"
             comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
           />
-          <div className="absolute top-2 right-2">
-            <InfoTooltip text="Total konverteringsgrad baserat på GA4 sessions" />
-          </div>
         </div>
 
         <div className="relative">
@@ -127,9 +122,6 @@ export function EfficiencyBlock() {
             className="min-h-[208px]"
             comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
           />
-          <div className="absolute top-2 right-2">
-            <InfoTooltip text="Kostnad per förvärv för leads" />
-          </div>
         </div>
 
         <div className="relative">
@@ -143,9 +135,6 @@ export function EfficiencyBlock() {
             className="min-h-[208px]"
             comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
           />
-          <div className="absolute top-2 right-2">
-            <InfoTooltip text="Kostnad per förvärv för kunder" />
-          </div>
         </div>
 
         <div className="relative">
@@ -159,9 +148,6 @@ export function EfficiencyBlock() {
             className="min-h-[208px]"
             comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
           />
-          <div className="absolute top-2 right-2">
-            <InfoTooltip text="Return on Investment baserat på försäljning vs kostnad" />
-          </div>
         </div>
       </div>
 
@@ -175,7 +161,6 @@ export function EfficiencyBlock() {
               </h3>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-dark-5 dark:text-dark-6">Källa: GA4 API</span>
-                <InfoTooltip text="Brytning per kanal med volym, konverteringsgrad, CPA och trend" />
               </div>
             </div>
           </div>

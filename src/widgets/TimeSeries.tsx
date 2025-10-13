@@ -18,8 +18,8 @@ export default function TimeSeries({ title, metric, range }: Props) {
 
   useEffect(() => {
     const effectiveRange = { ...range, grain: localGrain };
-    getKpi({ metric, range: effectiveRange, filters: { audience: state.audience, device: state.device, channel: state.channel } }).then(setData);
-  }, [metric, range.start, range.end, range.compareYoy, localGrain, state.audience.join(","), state.device.join(","), state.channel.join(",")]);
+    getKpi({ metric, range: effectiveRange, filters: { device: state.device, channel: state.channel } }).then(setData);
+  }, [metric, range.start, range.end, range.compareYoy, localGrain, state.device.join(","), state.channel.join(",")]);
 
   const Chart = useMemo(() => dynamic(() => Promise.resolve(() => <div>Chart disabled</div>), { ssr: false }), []);
 

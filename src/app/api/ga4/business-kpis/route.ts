@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getGA4Client } from '@/lib/ga4';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -92,6 +94,21 @@ export async function GET(req: NextRequest) {
         JSON.stringify({ error: 'Missing required parameters: start, end' }),
         { status: 400, headers: { 'content-type': 'application/json' } }
       );
+    }
+
+    // Set environment variables from service account file if not already set
+    if (!process.env.GA4_CLIENT_EMAIL || !process.env.GA4_PRIVATE_KEY) {
+      try {
+        const serviceAccountPath = join(process.cwd(), 'ga4-service-account.json');
+        const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+        
+        process.env.GA4_CLIENT_EMAIL = serviceAccount.client_email;
+        process.env.GA4_PRIVATE_KEY = serviceAccount.private_key;
+        // Use the actual GA4 property ID from .env.local
+        process.env.GA4_PROPERTY_ID = '314322245';
+      } catch (error) {
+        console.error('Failed to load service account:', error);
+      }
     }
 
     // Build filters object
@@ -213,7 +230,15 @@ export async function GET(req: NextRequest) {
     return new Response(
       JSON.stringify({ 
         error: 'Failed to fetch business KPIs',
-        details: error.message 
+        details: error.message,
+        stack: error.stack,
+        type: error.constructor.name,
+        env: {
+          hasClientEmail: !!process.env.GA4_CLIENT_EMAIL,
+          hasPrivateKey: !!process.env.GA4_PRIVATE_KEY,
+          hasPropertyId: !!process.env.GA4_PROPERTY_ID,
+          propertyId: process.env.GA4_PROPERTY_ID
+        }
       }),
       { 
         status: 500, 

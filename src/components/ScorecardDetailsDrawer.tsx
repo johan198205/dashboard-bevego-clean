@@ -279,7 +279,7 @@ export default function ScorecardDetailsDrawer({ open, onClose, metricId, title,
       }
     };
     window.addEventListener("keydown", onKey);
-    const args = { start: state.range.start, end: state.range.end, grain: state.range.grain, filters: { audience: state.audience, device: state.device, channel: state.channel } };
+    const args = { start: state.range.start, end: state.range.end, grain: state.range.grain, filters: { device: state.device, channel: state.channel } };
     getSeries(args).then(async (s) => {
       setSeries(s);
       const anomaliesDetected = detectAnomalies(s);

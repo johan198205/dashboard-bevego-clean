@@ -77,7 +77,7 @@ export default function FunnelBlock() {
     };
     load();
     return () => { cancelled = true; };
-  }, [state.range.start, state.range.end, state.range.grain, state.range.comparisonMode, state.channel.join(","), state.device.join(","), state.audience.join(",")]);
+  }, [state.range.start, state.range.end, state.range.grain, state.range.comparisonMode, state.channel.join(","), state.device.join(",")]);
 
   const totalsCheck = useMemo(() => steps.reduce((acc, s) => acc + s.value, 0) >= 0, [steps]);
 

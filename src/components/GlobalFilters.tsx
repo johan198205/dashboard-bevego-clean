@@ -6,7 +6,6 @@ import FilterDropdown from "./FilterDropdown";
 
 type FilterState = {
   range: { start: string; end: string; compareYoy: boolean; comparisonMode: 'none' | 'yoy' | 'prev'; grain: Grain };
-  audience: string[];
   device: string[];
   channel: string[];
 };
@@ -33,7 +32,6 @@ export function FiltersProvider({ children }: { children: React.ReactNode }) {
   start.setDate(start.getDate() - 6);
   const defaultState: FilterState = {
     range: { start: start.toISOString().slice(0, 10), end: today.toISOString().slice(0, 10), compareYoy: true, comparisonMode: 'yoy', grain: "day" },
-    audience: [],
     device: [],
     channel: [],
   };
@@ -48,7 +46,7 @@ export function FiltersProvider({ children }: { children: React.ReactNode }) {
       if (saved) {
         const parsedState = JSON.parse(saved) as FilterState;
         // Basic validation to ensure the saved state has the expected structure
-        if (parsedState.range && parsedState.audience && parsedState.device && parsedState.channel) {
+        if (parsedState.range && parsedState.device && parsedState.channel) {
           setStateRaw(parsedState);
         }
       }
@@ -174,15 +172,10 @@ export default function GlobalFilters() {
     } else {
       params.delete('channel');
     }
-    if (state.audience.length > 0) {
-      params.set('audience', state.audience.join(','));
-    } else {
-      params.delete('audience');
-    }
     
     const newUrl = `${pathname}?${params.toString()}`;
     router.replace(newUrl);
-  }, [state.range.start, state.range.end, state.range.comparisonMode, state.device, state.channel, state.audience, currentSearch, pathname, router]);
+  }, [state.range.start, state.range.end, state.range.comparisonMode, state.device, state.channel, currentSearch, pathname, router]);
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-3" suppressHydrationWarning>
@@ -258,17 +251,6 @@ export default function GlobalFilters() {
 
       {/* Removed global Dag/Vecka/Månad filter per requirement. Local controls are provided within each chart widget. */}
 
-      <FilterDropdown
-        label="Roll"
-        items={[
-          { value: "Styrelse", label: "Styrelse" },
-          { value: "Medlem", label: "Medlem" },
-          { value: "Leverantör", label: "Leverantör" },
-          { value: "Förvaltare", label: "Förvaltare" },
-        ]}
-        values={state.audience}
-        onChange={(values) => setState((p) => ({ ...p, audience: values }))}
-      />
 
       <FilterDropdown
         label="Enhet"
@@ -296,7 +278,7 @@ export default function GlobalFilters() {
       {/* Apply button removed - all dashboards now use auto-apply */}
 
       {/* Selected filter chips */}
-      {(state.audience.length > 0 || state.device.length > 0 || state.channel.length > 0) && (
+      {(state.device.length > 0 || state.channel.length > 0) && (
         <div className="flex flex-wrap items-center gap-2">
           {state.device.map((d) => (
             <button
@@ -324,18 +306,6 @@ export default function GlobalFilters() {
             </button>
           ))}
 
-          {state.audience.map((a) => (
-            <button
-              key={`chip-audience-${a}`}
-              className="inline-flex items-center gap-2 rounded-full border border-stroke bg-white px-2 py-0.5 text-xs shadow-sm dark:border-dark-3 dark:bg-dark-2"
-              onClick={() => setState((p) => ({ ...p, audience: p.audience.filter((v) => v !== a) }))}
-              aria-label={`Ta bort filter Roll: ${a}`}
-              title={`Roll: ${a}`}
-            >
-              <span className="text-gray-600 dark:text-gray-200">Roll: {a}</span>
-              <span className="ml-1 inline-grid size-4 place-items-center rounded-full bg-gray-200 text-gray-700 dark:bg-[#FFFFFF1A] dark:text-gray-200">×</span>
-            </button>
-          ))}
         </div>
       )}
     </div>

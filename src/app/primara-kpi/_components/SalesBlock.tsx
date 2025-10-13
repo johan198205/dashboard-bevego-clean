@@ -5,7 +5,6 @@ import { formatNumber, formatPercent } from "@/lib/format";
 import { ScoreCard } from "@/components/ui/scorecard";
 import { UserIcon, GlobeIcon, EmailIcon, TrendingUpIcon } from "@/assets/icons";
 import { Switch } from "@/components/FormElements/switch";
-import InfoTooltip from "@/components/InfoTooltip";
 import dynamic from "next/dynamic";
 import type { ApexOptions } from "apexcharts";
 
@@ -211,7 +210,6 @@ export function SalesBlock() {
           <span className="text-xs text-gray-500 dark:text-gray-400">
             Källa: GA4 API
           </span>
-          <InfoTooltip text="Data från Google Analytics 4 med affärslogik-mappning" />
         </div>
       </div>
 
@@ -237,9 +235,6 @@ export function SalesBlock() {
             className="min-h-[208px] relative pr-5 pb-6"
             comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
           />
-          <div className="absolute top-2 right-2">
-            <InfoTooltip text="Beräknat från GA4 sessions med 3% konverteringsgrad" />
-          </div>
         </div>
 
         <div className="relative">
@@ -262,9 +257,6 @@ export function SalesBlock() {
             className="min-h-[208px] relative pr-5 pb-6"
             comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
           />
-          <div className="absolute top-2 right-2">
-            <InfoTooltip text="Beräknat från slutförda köp × genomsnittligt ordervärde (2500 SEK)" />
-          </div>
         </div>
 
         <div className="relative">
@@ -287,9 +279,6 @@ export function SalesBlock() {
             className="min-h-[208px] relative pr-5 pb-6"
             comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
           />
-          <div className="absolute top-2 right-2">
-            <InfoTooltip text="Genomsnittligt ordervärde baserat på historisk data" />
-          </div>
         </div>
 
         <div className="relative">
@@ -312,9 +301,6 @@ export function SalesBlock() {
             className="min-h-[208px] relative pr-5 pb-6"
             comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
           />
-          <div className="absolute top-2 right-2">
-            <InfoTooltip text="Antal återkommande användare från GA4" />
-          </div>
         </div>
       </div>
 
@@ -325,7 +311,6 @@ export function SalesBlock() {
             <div className="title">Försäljning över tid (nya vs återkommande kunder)</div>
             <div className="flex items-center gap-2">
               <span className="badge">Källa: GA4 API</span>
-              <InfoTooltip text="Tidsserie för försäljning baserat på GA4 sessions-data" />
             </div>
           </div>
           {chartData.length > 0 ? (

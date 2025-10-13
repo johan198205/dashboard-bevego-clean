@@ -98,7 +98,7 @@ export default function ProductCategoryBlock() {
     };
     load();
     return () => { cancelled = true; };
-  }, [state.range.start, state.range.end, state.range.grain, state.range.comparisonMode, state.channel.join(","), state.device.join(","), state.audience.join(",")]);
+  }, [state.range.start, state.range.end, state.range.grain, state.range.comparisonMode, state.channel.join(","), state.device.join(",")]);
 
   const barSeries = useMemo(() => {
     const items = topCategoriesByConv;

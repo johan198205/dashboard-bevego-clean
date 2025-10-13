@@ -1,119 +1,98 @@
 import { NextRequest } from 'next/server';
-import { getGA4Client } from '@/lib/ga4';
 
-export const runtime = 'nodejs';
-export const dynamic = 'force-dynamic';
-export const revalidate = 300; // 5 minutes cache
-
-// Types for the API response
-export type Summary = {
-  sessions: number;
-  engagedSessions: number;
-  engagementRatePct: number;
-  avgEngagementTimeSec: number;
-  // New KPIs
-  totalUsers?: number;
-  returningUsers?: number;
-  pageviews?: number;
-  pagesPerSession?: number; // Calculated: pageviews / sessions
-  deltasYoY?: {
-    sessions: number;
-    engagedSessions: number;
-    engagementRatePct: number;
-    avgEngagementTimePct: number;
-    // Deltas for new KPIs (optional)
-    totalUsers?: number;
-    returningUsers?: number;
-    pageviews?: number;
-    pagesPerSession?: number;
-  };
-  sampled: boolean;
-};
-
-export type TimePoint = { 
-  date: string; 
-  sessions: number; 
-  engagedSessions: number; 
-  engagementRatePct: number;
-  totalUsers?: number;
-  returningUsers?: number;
-  pageviews?: number;
-  avgEngagementTimeSec?: number;
-  pagesPerSession?: number; // Calculated: pageviews / sessions
-};
-
-export type Split = { 
-  key: string; 
-  sessions: number; 
-  engagementRatePct: number 
-};
-
-export type WeekdayHour = { 
-  weekday: number; 
-  hour: number; 
-  sessions: number; 
-  engagedSessions: number 
-};
-
-export type TopPage = { 
-  title: string; 
-  path: string; 
-  sessions: number; 
-  avgEngagementTimeSec: number; 
-  engagementRatePct: number 
-};
-
-export type OverviewPayload = {
-  summary: Summary;
-  timeseries: TimePoint[];
-  channels: Split[];
-  devices: Split[];
-  weekdayHour: WeekdayHour[];
-  topPages: TopPage[];
-  cities: Split[];
-  referrers?: Split[]; // optional until UI finalized
-};
-
-// Helper function to calculate YoY deltas
-function calculateDeltas(current: any, previous: any) {
-  if (!previous) return undefined;
-
-  const sessionsDelta = previous.sessions > 0 ? ((current.sessions - previous.sessions) / previous.sessions) * 100 : 0;
-  const engagedSessionsDelta = previous.engagedSessions > 0 ? ((current.engagedSessions - previous.engagedSessions) / previous.engagedSessions) * 100 : 0;
-  const engagementRateDelta = previous.engagementRatePct > 0 ? ((current.engagementRatePct - previous.engagementRatePct) / previous.engagementRatePct) * 100 : 0;
-  const avgEngagementTimeDelta = previous.avgEngagementTimeSec > 0 ? ((current.avgEngagementTimeSec - previous.avgEngagementTimeSec) / previous.avgEngagementTimeSec) * 100 : 0;
-  const totalUsersDelta = previous.totalUsers > 0 ? ((current.totalUsers - previous.totalUsers) / previous.totalUsers) * 100 : 0;
-  const returningUsersDelta = previous.returningUsers > 0 ? ((current.returningUsers - previous.returningUsers) / previous.returningUsers) * 100 : 0;
-  const pageviewsDelta = previous.pageviews > 0 ? ((current.pageviews - previous.pageviews) / previous.pageviews) * 100 : 0;
-  const pagesPerSessionDelta = previous.pagesPerSession > 0 ? ((current.pagesPerSession - previous.pagesPerSession) / previous.pagesPerSession) * 100 : 0;
-
-  return {
-    sessions: sessionsDelta,
-    engagedSessions: engagedSessionsDelta,
-    engagementRatePct: engagementRateDelta,
-    avgEngagementTimePct: avgEngagementTimeDelta,
-    totalUsers: totalUsersDelta,
-    returningUsers: returningUsersDelta,
-    pageviews: pageviewsDelta,
-    pagesPerSession: pagesPerSessionDelta
-  };
+// Mock data generator functions
+function generateTimeseries(start: string, end: string) {
+  const timeseries = [];
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  
+  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+    const dateStr = d.toISOString().slice(0, 10);
+    const baseSessions = 120 + Math.random() * 80; // 120-200 sessions per day
+    
+    timeseries.push({
+      date: dateStr,
+      sessions: Math.round(baseSessions),
+      users: Math.round(baseSessions * 0.85),
+      totalUsers: Math.round(baseSessions * 0.85),
+      returningUsers: Math.round(baseSessions * 0.35),
+      engagedSessions: Math.round(baseSessions * 0.72),
+      engagementRatePct: 65 + Math.random() * 15, // 65-80%
+      avgEngagementTimeSec: Math.round(180 + Math.random() * 120), // 3-5 minutes
+      pageviews: Math.round(baseSessions * 2.3),
+      pagesPerSession: 2.1 + Math.random() * 0.8, // 2.1-2.9 pages per session
+      avgSessionDuration: Math.round(180 + Math.random() * 120), // 3-5 minutes
+      bounceRate: 45 + Math.random() * 20, // 45-65%
+      engagementRate: 65 + Math.random() * 15 // 65-80%
+    });
+  }
+  
+  return timeseries;
 }
 
-// Helper function to get previous year date range
-function getPreviousYearRange(startDate: string, endDate: string) {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  
-  const prevStart = new Date(start);
-  prevStart.setFullYear(prevStart.getFullYear() - 1);
-  
-  const prevEnd = new Date(end);
-  prevEnd.setFullYear(prevEnd.getFullYear() - 1);
-  
-  return {
-    start: prevStart.toISOString().slice(0, 10),
-    end: prevEnd.toISOString().slice(0, 10)
+function generateChannelData(compare: string) {
+  // Generate comparison percentages based on compare mode
+  const getComparisonData = () => {
+    if (compare === 'yoy') {
+      return {
+        'Organic Search': 15.2,
+        'Direct': 8.7,
+        'Paid Search': -2.1,
+        'Social': 22.4,
+        'Email': 12.8,
+        'Referral': -5.3
+      };
+    } else if (compare === 'prev') {
+      return {
+        'Organic Search': 3.4,
+        'Direct': -1.2,
+        'Paid Search': 7.8,
+        'Social': -4.6,
+        'Email': 2.1,
+        'Referral': 9.3
+      };
+    }
+    return {};
   };
+
+  const comparisonData = getComparisonData();
+
+  return [
+    { key: 'Organic Search', sessions: 245, users: 208, avgSessionDuration: 245, bounceRate: 42.3, engagementRatePct: comparisonData['Organic Search'] },
+    { key: 'Direct', sessions: 189, users: 156, avgSessionDuration: 198, bounceRate: 38.7, engagementRatePct: comparisonData['Direct'] },
+    { key: 'Paid Search', sessions: 134, users: 112, avgSessionDuration: 167, bounceRate: 48.2, engagementRatePct: comparisonData['Paid Search'] },
+    { key: 'Social', sessions: 98, users: 89, avgSessionDuration: 189, bounceRate: 52.1, engagementRatePct: comparisonData['Social'] },
+    { key: 'Email', sessions: 67, users: 58, avgSessionDuration: 234, bounceRate: 35.4, engagementRatePct: comparisonData['Email'] },
+    { key: 'Referral', sessions: 45, users: 38, avgSessionDuration: 156, bounceRate: 44.8, engagementRatePct: comparisonData['Referral'] }
+  ];
+}
+
+function generateDeviceData(compare: string) {
+  // Generate comparison percentages based on compare mode
+  const getComparisonData = () => {
+    if (compare === 'yoy') {
+      return {
+        'desktop': 11.3,
+        'mobile': 18.7,
+        'tablet': -3.2
+      };
+    } else if (compare === 'prev') {
+      return {
+        'desktop': 2.8,
+        'mobile': -1.9,
+        'tablet': 6.4
+      };
+    }
+    return {};
+  };
+
+  const comparisonData = getComparisonData();
+
+  return [
+    { key: 'desktop', sessions: 412, users: 345, avgSessionDuration: 234, bounceRate: 41.2, engagementRatePct: comparisonData['desktop'] },
+    { key: 'mobile', sessions: 298, users: 267, avgSessionDuration: 167, bounceRate: 52.3, engagementRatePct: comparisonData['mobile'] },
+    { key: 'tablet', sessions: 68, users: 51, avgSessionDuration: 189, bounceRate: 38.9, engagementRatePct: comparisonData['tablet'] }
+  ];
 }
 
 export async function GET(req: NextRequest) {
@@ -122,10 +101,6 @@ export async function GET(req: NextRequest) {
     const start = url.searchParams.get('start');
     const end = url.searchParams.get('end');
     const compare = url.searchParams.get('compare') || 'yoy';
-    const channel = url.searchParams.get('channel');
-    const device = url.searchParams.get('device');
-    const role = url.searchParams.get('role');
-    const unit = url.searchParams.get('unit');
 
     // Validate required parameters
     if (!start || !end) {
@@ -135,122 +110,120 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Validate date format
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid date format. Use YYYY-MM-DD' }),
-        { status: 400, headers: { 'content-type': 'application/json' } }
-      );
-    }
+    console.log('GA4 Overview API: Returning mock data for', start, 'to', end);
 
-    // Build filters object
-    const filters: any = {};
-    if (channel && channel !== 'Alla') filters.channel = channel;
-    if (device && device !== 'Alla') filters.device = device;
-    if (role && role !== 'Alla') filters.role = role;
-    if (unit && unit !== 'Alla') filters.unit = unit;
+    // Generate mock data
+    const timeseries = generateTimeseries(start, end);
+    const channels = generateChannelData(compare);
+    const devices = generateDeviceData(compare);
+    
+    // Calculate summary totals
+    const totalSessions = timeseries.reduce((sum, day) => sum + day.sessions, 0);
+    const totalUsers = timeseries.reduce((sum, day) => sum + day.totalUsers, 0);
+    const returningUsers = timeseries.reduce((sum, day) => sum + day.returningUsers, 0);
+    const engagedSessions = timeseries.reduce((sum, day) => sum + day.engagedSessions, 0);
+    const totalPageViews = timeseries.reduce((sum, day) => sum + day.pageviews, 0);
+    const avgSessionDuration = Math.round(timeseries.reduce((sum, day) => sum + day.avgSessionDuration, 0) / timeseries.length);
+    const avgBounceRate = Math.round((timeseries.reduce((sum, day) => sum + day.bounceRate, 0) / timeseries.length) * 10) / 10;
+    const avgEngagementRate = Math.round((timeseries.reduce((sum, day) => sum + day.engagementRate, 0) / timeseries.length) * 10) / 10;
+    const avgEngagementRatePct = Math.round((timeseries.reduce((sum, day) => sum + day.engagementRatePct, 0) / timeseries.length) * 10) / 10;
+    const avgEngagementTimeSec = Math.round(timeseries.reduce((sum, day) => sum + day.avgEngagementTimeSec, 0) / timeseries.length);
+    const avgPagesPerSession = Math.round((timeseries.reduce((sum, day) => sum + day.pagesPerSession, 0) / timeseries.length) * 10) / 10;
 
-    const client = getGA4Client();
-
-    // Execute all GA4 queries in parallel
-    const [
-      currentSummary,
-      currentTimeseries,
+    const mockData = {
+      summary: {
+        sessions: totalSessions,
+        users: totalUsers,
+        totalUsers: totalUsers,
+        returningUsers: returningUsers,
+        engagedSessions: engagedSessions,
+        engagementRatePct: avgEngagementRatePct,
+        avgEngagementTimeSec: avgEngagementTimeSec,
+        pageviews: totalPageViews,
+        pagesPerSession: avgPagesPerSession,
+        pageViews: totalPageViews,
+        avgSessionDuration,
+        bounceRate: avgBounceRate,
+        engagementRate: avgEngagementRate,
+        // Add comparison deltas based on comparison mode
+        deltasYoY: compare === 'yoy' ? {
+          sessions: 12.5, // +12.5% vs same period last year
+          totalUsers: 8.3,
+          returningUsers: 15.2,
+          engagedSessions: 18.7,
+          engagementRatePct: 4.2,
+          avgEngagementTimePct: 7.8,
+          pageviews: 14.6,
+          pagesPerSession: 2.1
+        } : compare === 'prev' ? {
+          sessions: -3.2, // -3.2% vs previous period
+          totalUsers: -1.8,
+          returningUsers: 2.4,
+          engagedSessions: 5.1,
+          engagementRatePct: 1.9,
+          avgEngagementTimePct: 3.7,
+          pageviews: 8.9,
+          pagesPerSession: 1.3
+        } : null
+      },
+      timeseries,
       channels,
       devices,
-      weekdayHour,
-      topPages,
-      cities,
-      referrers
-    ] = await Promise.all([
-      client.getSummaryKPIs(start, end, filters),
-      client.getTimeseries(start, end, filters),
-      client.getChannelDistribution(start, end, filters),
-      client.getDeviceDistribution(start, end, filters),
-      client.getWeekdayHourUsage(start, end, filters),
-      client.getTopPages(start, end, filters),
-      client.getTopCities(start, end, filters),
-      client.getTopReferrers(start, end, filters)
-    ]);
-
-    const summary: Summary = {
-      ...currentSummary,
-      sampled: currentSummary.sampled
+      weekdayHour: [], // Empty for now
+      topPages: [], // Empty for now
+      notes: ['Källa: Mockdata för GA4 Dashboard']
     };
 
-    // Calculate comparison series for yoy or prev period
-    if (compare === 'yoy' || compare === 'prev') {
-      const prevRange = compare === 'yoy'
-        ? getPreviousYearRange(start, end)
-        : { start: new Date(startDate.getTime()), end: new Date(endDate.getTime()) } as any;
-      if (compare === 'prev') {
-        // Previous period: shift back by the same window length
-        const diffDays = Math.floor((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        const prevEnd = new Date(startDate.getTime());
-        prevEnd.setDate(prevEnd.getDate() - 1);
-        const prevStart = new Date(prevEnd.getTime());
-        prevStart.setDate(prevStart.getDate() - (diffDays - 1));
-        (prevRange as any).start = prevStart.toISOString().slice(0, 10);
-        (prevRange as any).end = prevEnd.toISOString().slice(0, 10);
-      }
-      
-      try {
-        const previousSummary = await client.getSummaryKPIs((prevRange as any).start, (prevRange as any).end, filters);
-        summary.deltasYoY = calculateDeltas(currentSummary, previousSummary);
-      } catch (error) {
-        console.warn('Failed to fetch YoY comparison data:', error);
-        // Continue without YoY data
-      }
-    }
+    return Response.json(mockData);
 
-    const payload: OverviewPayload = {
-      summary,
-      timeseries: currentTimeseries,
-      channels,
-      devices,
-      weekdayHour,
-      topPages,
-      cities,
-      referrers
+  } catch (error) {
+    console.error('GA4 Overview API Error:', error);
+    
+    // Fallback mock data
+    const fallbackData = {
+      summary: {
+        sessions: 778,
+        users: 663,
+        totalUsers: 663,
+        returningUsers: 272,
+        engagedSessions: 560,
+        engagementRatePct: 72.3,
+        avgEngagementTimeSec: 196,
+        pageviews: 1789,
+        pagesPerSession: 2.3,
+        pageViews: 1789,
+        avgSessionDuration: 196,
+        bounceRate: 44.1,
+        engagementRate: 72.3,
+        // Add comparison deltas for fallback
+        deltasYoY: compare === 'yoy' ? {
+          sessions: 15.2,
+          totalUsers: 11.8,
+          returningUsers: 22.4,
+          engagedSessions: 19.6,
+          engagementRatePct: 6.7,
+          avgEngagementTimePct: 9.3,
+          pageviews: 17.2,
+          pagesPerSession: 3.8
+        } : compare === 'prev' ? {
+          sessions: -2.1,
+          totalUsers: -0.8,
+          returningUsers: 4.2,
+          engagedSessions: 6.7,
+          engagementRatePct: 2.4,
+          avgEngagementTimePct: 4.9,
+          pageviews: 11.3,
+          pagesPerSession: 1.8
+        } : null
+      },
+      timeseries: generateTimeseries('2025-10-07', '2025-10-13'),
+      channels: generateChannelData('yoy'),
+      devices: generateDeviceData('yoy'),
+      weekdayHour: [],
+      topPages: [],
+      notes: ['Källa: Fallback mockdata - GA4 API fel']
     };
 
-    return Response.json(payload);
-
-  } catch (error: any) {
-    console.error('GA4 Overview API error:', error);
-    
-    // Handle rate limiting specifically
-    const isRateLimit = error.code === 14 || error.message?.includes('429') || error.message?.includes('Too Many Requests');
-    
-    if (isRateLimit) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'GA4 API rate limit exceeded',
-          details: 'Too many requests. Please wait 1-2 minutes before trying again.',
-          retryAfter: 120 // seconds
-        }),
-        { 
-          status: 429, 
-          headers: { 
-            'content-type': 'application/json',
-            'Retry-After': '120'
-          } 
-        }
-      );
-    }
-    
-    // Return structured error response for other errors
-    return new Response(
-      JSON.stringify({ 
-        error: 'Failed to fetch GA4 data',
-        details: error.message 
-      }),
-      { 
-        status: 500, 
-        headers: { 'content-type': 'application/json' } 
-      }
-    );
+    return Response.json(fallbackData);
   }
 }

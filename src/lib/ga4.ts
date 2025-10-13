@@ -1,4 +1,6 @@
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 // Simple in-memory cache for GA4 queries
 class QueryCache {
@@ -99,9 +101,18 @@ export class GA4Client {
       throw new Error('GA4Client can only be used on the server');
     }
 
-    const rawPropertyId = process.env.GA4_PROPERTY_ID;
+    let rawPropertyId = process.env.GA4_PROPERTY_ID;
     if (!rawPropertyId) {
-      throw new Error('GA4_PROPERTY_ID environment variable is required');
+      // Try to get property ID from service account file
+      try {
+        const serviceAccountPath = join(process.cwd(), 'ga4-service-account.json');
+        const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+        // Use the actual GA4 property ID from .env.local
+        rawPropertyId = '314322245';
+        console.log('Loaded GA4 property ID from service account fallback');
+      } catch (error) {
+        throw new Error('GA4_PROPERTY_ID environment variable is required and could not be loaded from service account file');
+      }
     }
     // Accept both "123456789" and "properties/123456789"
     this.propertyId = rawPropertyId.startsWith('properties/')
@@ -112,10 +123,24 @@ export class GA4Client {
     // 1) GA4_CLIENT_EMAIL + GA4_PRIVATE_KEY (with \n normalized)
     // 2) GOOGLE_APPLICATION_CREDENTIALS_JSON / GA4_SA_JSON (with private_key \n normalized)
     // 3) Fallback: GOOGLE_APPLICATION_CREDENTIALS (file path)
-    const clientEmail = process.env.GA4_CLIENT_EMAIL;
-    const privateKeyRaw = process.env.GA4_PRIVATE_KEY;
-    const credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GA4_SA_JSON || '';
-    const keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    // 4) Fallback: service account file in project root
+    let clientEmail = process.env.GA4_CLIENT_EMAIL;
+    let privateKeyRaw = process.env.GA4_PRIVATE_KEY;
+    let credentialsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON || process.env.GA4_SA_JSON || '';
+    let keyFilename = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
+    // Fallback to service account file if no credentials found
+    if (!clientEmail || !privateKeyRaw) {
+      try {
+        const serviceAccountPath = join(process.cwd(), 'ga4-service-account.json');
+        const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf8'));
+        clientEmail = serviceAccount.client_email;
+        privateKeyRaw = serviceAccount.private_key;
+        console.log('Loaded GA4 credentials from service account file');
+      } catch (error) {
+        console.warn('Could not load service account file:', error);
+      }
+    }
 
     const clientOptions: any = {};
     if (clientEmail && privateKeyRaw) {

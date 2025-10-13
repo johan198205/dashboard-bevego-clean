@@ -167,8 +167,8 @@ export function Distributions({ title, data, type, totalSessions, onClick, hideT
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayData.map((item) => (
-                  <TableRow key={item.key}>
+                {displayData.map((item, index) => (
+                  <TableRow key={item.key || `item-${index}`}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <div 

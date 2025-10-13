@@ -13,7 +13,6 @@ type SearchParams = {
   compare?: string;
   channel?: string;
   device?: string;
-  role?: string;
   unit?: string;
 };
 
@@ -42,13 +41,6 @@ const DEVICE_OPTIONS = [
   { value: 'tablet', label: 'Surfplatta' },
 ];
 
-const ROLE_OPTIONS = [
-  { value: 'Alla', label: 'Alla roller' },
-  { value: 'Boende', label: 'Boende' },
-  { value: 'Brf-styrelse', label: 'BRF-styrelse' },
-  { value: 'Leverantör', label: 'Leverantör' },
-  { value: 'Intern', label: 'Intern' },
-];
 
 const COMPARE_OPTIONS = [
   { value: 'yoy', label: 'Jämför med föregående år' },
@@ -92,7 +84,6 @@ export function HeaderFilters({ searchParams, onFiltersChange, disabled = false 
   const [localCompare, setLocalCompare] = useState(searchParams.compare || 'yoy');
   const [localChannel, setLocalChannel] = useState(searchParams.channel || 'Alla');
   const [localDevice, setLocalDevice] = useState(searchParams.device || 'Alla');
-  const [localRole, setLocalRole] = useState(searchParams.role || 'Alla');
 
   const handleDateRangeChange = (start: string, end: string) => {
     setLocalStart(start);
@@ -112,7 +103,6 @@ export function HeaderFilters({ searchParams, onFiltersChange, disabled = false 
       compare: localCompare,
       channel: localChannel === 'Alla' ? undefined : localChannel,
       device: localDevice === 'Alla' ? undefined : localDevice,
-      role: localRole === 'Alla' ? undefined : localRole,
     });
   };
 
@@ -126,14 +116,12 @@ export function HeaderFilters({ searchParams, onFiltersChange, disabled = false 
     setLocalCompare('yoy');
     setLocalChannel('Alla');
     setLocalDevice('Alla');
-    setLocalRole('Alla');
     onFiltersChange({
       start: defaultRange.start,
       end: defaultRange.end,
       compare: 'yoy',
       channel: undefined,
       device: undefined,
-      role: undefined,
       unit: undefined,
     });
   };
@@ -255,28 +243,6 @@ export function HeaderFilters({ searchParams, onFiltersChange, disabled = false 
             </Select>
           </div>
 
-          {/* Role Filter */}
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-              Roll:
-            </span>
-            <Select
-              value={localRole}
-              onValueChange={(value) => setLocalRole(value)}
-              disabled={disabled}
-            >
-              <SelectTrigger className="w-36">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ROLE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           {/* Actions */}
           <div className="ml-auto flex gap-2">

@@ -288,12 +288,9 @@ export function ScoreCard({
           />
         )}
 
-        {/* Source attribution with info icon */}
+        {/* Source attribution */}
         {source && (
-          <div className={cn("flex items-center gap-1 text-xs text-dark-5 dark:text-dark-6", isCompact ? "mt-1" : "mt-4") }>
-            <div className="h-3 w-3 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center">
-              <span className="text-[8px] font-bold">i</span>
-            </div>
+          <div className={cn("text-xs text-dark-5 dark:text-dark-6", isCompact ? "mt-1" : "mt-4") }>
             Källa: {source}
           </div>
         )}

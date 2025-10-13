@@ -31,7 +31,7 @@ export function MiniSparkline({ getSeries, className, colorClassName = "text-red
       start: state.range.start,
       end: state.range.end,
       grain: state.range.grain,
-      filters: { audience: state.audience, device: state.device, channel: state.channel },
+      filters: { device: state.device, channel: state.channel },
     } as const;
     getSeries(args)
       .then((points) => {
@@ -43,7 +43,7 @@ export function MiniSparkline({ getSeries, className, colorClassName = "text-red
     return () => {
       mounted = false;
     };
-  }, [getSeries, state.range.start, state.range.end, state.range.grain, state.audience, state.device, state.channel]);
+  }, [getSeries, state.range.start, state.range.end, state.range.grain, state.device, state.channel]);
 
   const pathData = useMemo(() => {
     if (!series || series.length === 0) return null;

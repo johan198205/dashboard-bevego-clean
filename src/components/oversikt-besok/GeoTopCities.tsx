@@ -29,6 +29,9 @@ export function GeoTopCities({ data, onClick }: Props) {
 
   // All cities sorted desc - show all data as it comes from GA4 API
   const allCities = useMemo(() => {
+    if (!data || !Array.isArray(data)) {
+      return [];
+    }
     return [...data]
       .map((c) => ({ ...c, name: c.key === '(not set)' ? 'Okänd plats' : c.key }))
       .sort((a, b) => b.sessions - a.sessions);
@@ -39,7 +42,10 @@ export function GeoTopCities({ data, onClick }: Props) {
     return showAll ? allCities : allCities.slice(0, 10);
   }, [allCities, showAll]);
 
-  const totalSessions = useMemo(() => data.reduce((sum, c) => sum + c.sessions, 0), [data]);
+  const totalSessions = useMemo(() => {
+    if (!data || !Array.isArray(data)) return 0;
+    return data.reduce((sum, c) => sum + c.sessions, 0);
+  }, [data]);
 
   // Build filters from URL
   function buildFilterParams(sp: URLSearchParams) {

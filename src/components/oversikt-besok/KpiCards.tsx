@@ -6,7 +6,6 @@ import { Switch } from '@/components/FormElements/switch';
 import { Users, MousePointer, TrendingUp, Clock, UserCheck, Eye, FileText } from 'lucide-react';
 import { formatNumber, formatPercent, formatTime } from '@/utils/format';
 import type { Summary } from '@/app/api/ga4/overview/route';
-import ScorecardDetailsDrawer from '@/components/ScorecardDetailsDrawer';
 import { useFilters } from '@/components/GlobalFilters';
 
 type Props = {
@@ -26,7 +25,6 @@ type Props = {
 
 export function KpiCards({ data, activeSeries, onToggleSeries }: Props) {
   const { state: filterState } = useFilters();
-  const [openDrawer, setOpenDrawer] = useState<{ metricId: string; title: string } | null>(null);
   
   // choose label based on Delta source: when we compute prev-period we still store in deltasYoY
   // so detect via window.location if compare=prev to show correct label
@@ -123,7 +121,6 @@ export function KpiCards({ data, activeSeries, onToggleSeries }: Props) {
         const mapped = filters.device.map((d: string) => deviceMap[d] || d);
         params.set('device', mapped.join(','));
       }
-      if (filters?.audience?.length) params.set('role', filters.audience.join(','));
       
       const url = `/api/ga4/overview?${params.toString()}`;
       const res = await fetch(url);
@@ -164,7 +161,6 @@ export function KpiCards({ data, activeSeries, onToggleSeries }: Props) {
         const mapped = filters.device.map((d: string) => deviceMap[d] || d);
         params.set('device', mapped.join(','));
       }
-      if (filters?.audience?.length) params.set('role', filters.audience.join(','));
       
       const url = `/api/ga4/overview?${params.toString()}`;
       const res = await fetch(url);
@@ -213,25 +209,14 @@ export function KpiCards({ data, activeSeries, onToggleSeries }: Props) {
               source="GA4 Data API"
               comparisonLabel={comparisonLabel || undefined}
               className="relative pr-5 pb-6"
-              onClick={() => setOpenDrawer({ metricId: kpi.metricId, title: kpi.title })}
+              // onClick disabled - no drawer functionality
               getSeries={createGetSeries(kpi.metricId)}
             />
           </div>
         );
       })}
 
-      {/* Drawer for metric details */}
-      {openDrawer && (
-        <ScorecardDetailsDrawer
-          open={true}
-          onClose={() => setOpenDrawer(null)}
-          metricId={openDrawer.metricId}
-          title={openDrawer.title}
-          sourceLabel="GA4 Data API"
-          getSeries={createGetSeries(openDrawer.metricId)}
-          getCompareSeries={createGetCompareSeries(openDrawer.metricId)}
-        />
-      )}
+      {/* Drawer functionality disabled */}
     </div>
   );
 }

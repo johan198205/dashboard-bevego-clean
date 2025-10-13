@@ -28,8 +28,8 @@ export default function ChannelTable({ metric, range }: { metric: Params["metric
     }
   };
   useEffect(() => {
-    getKpi({ metric, range: { ...range, comparisonMode: state.range.comparisonMode }, filters: { audience: state.audience, device: state.device, channel: state.channel } }).then(setData);
-  }, [metric, range.start, range.end, range.grain, state.range.comparisonMode, state.audience.join(","), state.device.join(","), state.channel.join(",")]);
+    getKpi({ metric, range: { ...range, comparisonMode: state.range.comparisonMode }, filters: { device: state.device, channel: state.channel } }).then(setData);
+  }, [metric, range.start, range.end, range.grain, state.range.comparisonMode, state.device.join(","), state.channel.join(",")]);
   const rows = data?.breakdown || [];
 
   return (

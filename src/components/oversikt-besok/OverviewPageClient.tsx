@@ -14,7 +14,6 @@ import { Button } from '@/components/ui/button';
 import { RefreshCw, AlertCircle } from 'lucide-react';
 import { useFilters } from '@/components/GlobalFilters';
 import type { OverviewPayload } from '@/app/api/ga4/overview/route';
-import ScorecardDetailsDrawer, { type TimePoint } from '@/components/ScorecardDetailsDrawer';
 
 type Props = {
   initialData?: OverviewPayload | null;
@@ -26,7 +25,7 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
   const [data, setData] = useState<OverviewPayload | null>(initialData || null);
   const [loading, setLoading] = useState(!initialData && !initialError);
   const [error, setError] = useState<string | null>(initialError || null);
-  const [drawer, setDrawer] = useState<{ metricId: string; title: string; sourceLabel: string; distributionContext?: string } | null>(null);
+  // Drawer functionality disabled
   // Which metrics are shown in the timeline chart
   const [activeSeries, setActiveSeries] = useState<{
     sessions: boolean;
@@ -59,8 +58,15 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
       const response = await fetch(fullUrl);
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || `HTTP ${response.status}`);
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          // If we can't parse the error response, use the status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
       
       const result: OverviewPayload = await response.json();
@@ -99,9 +105,6 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
         const mappedDevices = filterState.device.map(d => deviceMap[d] || d);
         params.set('device', mappedDevices.join(','));
       }
-      if (filterState.audience.length > 0) {
-        params.set('role', filterState.audience.join(','));
-      }
       
       return `/api/ga4/overview?${params.toString()}`;
     };
@@ -115,8 +118,15 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
         const response = await fetch(fullUrl, { signal: controller.signal });
         
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || `HTTP ${response.status}`);
+          let errorMessage = `HTTP ${response.status}`;
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.error || errorMessage;
+          } catch (parseError) {
+            // If we can't parse the error response, use the status text
+            errorMessage = response.statusText || errorMessage;
+          }
+          throw new Error(errorMessage);
         }
         
         const result: OverviewPayload = await response.json();
@@ -171,9 +181,6 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
       };
       const mappedDevices = filterState.device.map(d => deviceMap[d] || d);
       params.set('device', mappedDevices.join(','));
-    }
-    if (filterState.audience.length > 0) {
-      params.set('role', filterState.audience.join(','));
     }
     
     const apiUrl = `/api/ga4/overview?${params.toString()}`;
@@ -347,12 +354,7 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <UserTypeDistribution 
             data={data.summary}
-            onClick={() => setDrawer({ 
-              metricId: 'user_types', 
-              title: 'Användartyper', 
-              sourceLabel: 'GA4',
-              distributionContext: getDistributionContext('user_types')
-            })}
+            // onClick disabled - no drawer functionality
           />
         </div>
       </SectionLayout>
@@ -364,34 +366,19 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
             data={data.channels}
             type="channel"
             totalSessions={data.summary.sessions}
-            onClick={() => setDrawer({ 
-              metricId: 'channels', 
-              title: 'Kanaler', 
-              sourceLabel: 'GA4',
-              distributionContext: getDistributionContext('channels')
-            })}
+            // onClick disabled - no drawer functionality
           />
           <Distributions 
             title="Enheter"
             data={data.devices}
             type="device"
             totalSessions={data.summary.sessions}
-            onClick={() => setDrawer({ 
-              metricId: 'devices', 
-              title: 'Enheter', 
-              sourceLabel: 'GA4',
-              distributionContext: getDistributionContext('devices')
-            })}
+            // onClick disabled - no drawer functionality
           />
         </div>
         <GeoTopCities 
           data={data.cities}
-          onClick={() => setDrawer({ 
-            metricId: 'cities', 
-            title: 'Städer', 
-            sourceLabel: 'GA4',
-            distributionContext: getDistributionContext('cities')
-          })}
+          // onClick disabled - no drawer functionality
         />
         <ReferralTable data={data.referrers} totalSessions={data.summary.sessions} />
       </SectionLayout>
@@ -399,12 +386,7 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
       <SectionLayout title="Beteende" description="Användningsmönster och beteendetrender">
         <UsageHeatmap 
           data={data.weekdayHour}
-          onClick={() => setDrawer({ 
-            metricId: 'usage_patterns', 
-            title: 'Användningsmönster', 
-            sourceLabel: 'GA4',
-            distributionContext: getDistributionContext('usage_patterns')
-          })}
+          // onClick disabled - no drawer functionality
         />
         {/* TODO: Bounce rate – visa total + per vald sektion om signal finns i state */}
       </SectionLayout>
@@ -419,19 +401,7 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
         </Alert>
       )}
 
-      {/* Scorecard Details Drawer */}
-      {drawer && (
-        <ScorecardDetailsDrawer
-          open={!!drawer}
-          onClose={() => setDrawer(null)}
-          metricId={drawer.metricId}
-          title={drawer.title}
-          sourceLabel={drawer.sourceLabel}
-          getSeries={async (args) => getSeries(drawer.metricId)}
-          showChart={false}
-          distributionContext={drawer.distributionContext}
-        />
-      )}
+      {/* Scorecard Details Drawer functionality disabled */}
     </div>
   );
 }

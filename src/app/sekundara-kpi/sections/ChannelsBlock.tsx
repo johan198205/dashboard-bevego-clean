@@ -71,7 +71,7 @@ export default function ChannelsBlock() {
     };
     load();
     return () => { cancelled = true; };
-  }, [state.range.start, state.range.end, state.range.grain, state.range.comparisonMode, state.channel.join(","), state.device.join(","), state.audience.join(",")]);
+  }, [state.range.start, state.range.end, state.range.grain, state.range.comparisonMode, state.channel.join(","), state.device.join(",")]);
 
   const totalSessions = useMemo(() => channels.reduce((s, c) => s + (c.sessions || 0), 0), [channels]);
 

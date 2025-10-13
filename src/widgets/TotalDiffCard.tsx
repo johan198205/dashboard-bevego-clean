@@ -6,7 +6,6 @@ import { useFilters } from "@/components/GlobalFilters";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { ScoreCard } from "@/components/ui/scorecard";
 import { UserIcon, GlobeIcon } from "@/assets/icons";
-import InfoTooltip from "@/components/InfoTooltip";
 import ScorecardDetailsDrawer from "@/components/ScorecardDetailsDrawer";
 import { useKpi } from "@/hooks/useKpi";
 import { cn } from "@/lib/utils";
@@ -56,7 +55,8 @@ export default function TotalDiffCard({ title, metric, range }: Props) {
   const [data, setData] = useState<KpiResponse | null>(null);
   const { state } = useFilters();
   const [open, setOpen] = useState(false);
-  const { data: kpiSummary, loading, source } = useKpi({ metric, ttlMs: 1000 }); // 1 second cache for testing
+  const { data: kpiSummary, loading, source, error } = useKpi({ metric, ttlMs: 1000 }); // 1 second cache for testing
+  
   
   const fetchKpi = async (args: { metric: Props["metric"]; start: string; end: string; grain: any; comparisonMode?: any; filters?: any }): Promise<KpiResponse> => {
     const qs = new URLSearchParams({
@@ -93,14 +93,26 @@ export default function TotalDiffCard({ title, metric, range }: Props) {
   };
   
   useEffect(() => {
-    fetchKpi({ metric, start: range.start, end: range.end, grain: range.grain, comparisonMode: state.range.comparisonMode, filters: { audience: state.audience, device: state.device, channel: state.channel } })
+    fetchKpi({ metric, start: range.start, end: range.end, grain: range.grain, comparisonMode: state.range.comparisonMode, filters: { device: state.device, channel: state.channel } })
       .then(setData)
       .catch(() => setData(null));
-  }, [metric, range.start, range.end, range.compareYoy, range.grain, state.audience.join(","), state.device.join(","), state.channel.join(",")]);
+  }, [metric, range.start, range.end, range.compareYoy, range.grain, state.device.join(","), state.channel.join(",")]);
 
   const summary = data?.summary;
   const Icon = getMetricIcon(metric);
   const variant = getMetricVariant(metric);
+  
+  // Debug logging
+  useEffect(() => {
+    if (metric === 'mau') {
+      console.log('TotalDiffCard Debug - metric:', metric);
+      console.log('TotalDiffCard Debug - kpiSummary:', kpiSummary);
+      console.log('TotalDiffCard Debug - loading:', loading);
+      console.log('TotalDiffCard Debug - error:', error);
+      console.log('TotalDiffCard Debug - summary:', summary);
+      console.log('TotalDiffCard Debug - data:', data);
+    }
+  }, [metric, kpiSummary, loading, error, summary, data]);
   
   // Check if this metric should show progress bar
   const showProgress = KPI_PROGRESS_ENABLED_METRICS.includes(metric);
@@ -138,14 +150,27 @@ export default function TotalDiffCard({ title, metric, range }: Props) {
       )}
       <ScoreCard
         label={title}
-        value={kpiSummary
-          ? (() => {
-              const num = typeof kpiSummary.value === 'number' ? kpiSummary.value : parseFloat(String(kpiSummary.value));
+        value={(() => {
+          // Try kpiSummary first (from useKpi hook)
+          if (kpiSummary) {
+            const num = typeof kpiSummary.value === 'number' ? kpiSummary.value : parseFloat(String(kpiSummary.value));
+            if (!isNaN(num) && num !== 0) {
               return formatNumber(num);
-            })()
-          : (summary && data)
-            ? formatNumber(summary.current)
-            : "–"}
+            }
+          }
+          
+          // Fallback to summary from fetchKpi
+          if (summary && data && summary.current !== undefined && summary.current !== null) {
+            return formatNumber(summary.current);
+          }
+          
+          // If still no data, show loading state or fallback
+          if (loading) {
+            return "Laddar...";
+          }
+          
+          return "–";
+        })()}
         growthRate={kpiSummary ? kpiSummary.growthRate : summary ? summary.yoyPct : undefined}
         Icon={Icon}
         variant={variant}
@@ -157,9 +182,6 @@ export default function TotalDiffCard({ title, metric, range }: Props) {
         comparisonLabel={getComparisonLabel()}
         onClick={() => setOpen(true)}
       />
-      <div className="absolute top-2 right-2">
-        <InfoTooltip text={`Metrik: ${metric}. Mockdata och definitioner för demo.`} />
-      </div>
       <ScorecardDetailsDrawer
         open={open}
         onClose={() => setOpen(false)}

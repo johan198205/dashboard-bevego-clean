@@ -4,7 +4,6 @@ import { Params, KpiResponse } from "@/lib/types";
 import { useFilters } from "@/components/GlobalFilters";
 import { Gauge } from "@/components/ui/gauge";
 import { UserIcon, GlobeIcon, CheckIcon } from "@/assets/icons";
-import InfoTooltip from "@/components/InfoTooltip";
 import ScorecardDetailsDrawer from "@/components/ScorecardDetailsDrawer";
 
 type Props = {
@@ -64,10 +63,10 @@ export default function GaugeCard({ title, metric, range, baseValue = 100, compa
   };
   
   useEffect(() => {
-    fetchKpi({ metric, start: range.start, end: range.end, grain: range.grain, comparisonMode: state.range.comparisonMode, filters: { audience: state.audience, device: state.device, channel: state.channel } })
+    fetchKpi({ metric, start: range.start, end: range.end, grain: range.grain, comparisonMode: state.range.comparisonMode, filters: { device: state.device, channel: state.channel } })
       .then(setData)
       .catch(() => setData(null));
-  }, [metric, range.start, range.end, range.compareYoy, range.grain, state.audience.join(","), state.device.join(","), state.channel.join(",")]);
+  }, [metric, range.start, range.end, range.compareYoy, range.grain, state.device.join(","), state.channel.join(",")]);
 
   const summary = data?.summary;
   const Icon = getMetricIcon(metric);
@@ -115,10 +114,6 @@ export default function GaugeCard({ title, metric, range, baseValue = 100, compa
           </div>
         </div>
         
-        {/* Info icon in top-right corner like other scorecards */}
-        <div className={`absolute ${compact ? 'top-2 right-2' : 'top-4 right-4'}`}>
-          <InfoTooltip text={`Metrik: ${metric}. Mockdata och definitioner för demo.`} />
-        </div>
         
         {/* Gauge */}
         <div className={`flex justify-center ${compact ? 'mt-3' : 'mt-6'}`}>

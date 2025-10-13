@@ -99,7 +99,7 @@ export default function EngagementBlock() {
     };
     load();
     return () => { cancelled = true; };
-  }, [state.range.start, state.range.end, state.range.grain, state.range.comparisonMode, state.channel.join(","), state.device.join(","), state.audience.join(",")]);
+  }, [state.range.start, state.range.end, state.range.grain, state.range.comparisonMode, state.channel.join(","), state.device.join(",")]);
 
   const chartOptions = useMemo(() => ({
     chart: { type: "line", toolbar: { show: false }, fontFamily: "inherit" },
