@@ -11,28 +11,33 @@ type Props = {
 };
 
 export function UsageHeatmap({ data, onClick }: Props) {
+  const weekdays = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+  
   // Create a 7x24 grid (weekdays x hours)
   const grid = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ sessions: 0, engagedSessions: 0 })));
   
   // Fill the grid with data
   data.forEach(item => {
-    if (item.weekday >= 0 && item.weekday < 7 && item.hour >= 0 && item.hour < 24) {
-      grid[item.weekday][item.hour] = {
+    // Convert weekday string to index
+    const weekdayIndex = weekdays.indexOf(item.weekday);
+    if (weekdayIndex >= 0 && weekdayIndex < 7 && item.hour >= 0 && item.hour < 24) {
+      grid[weekdayIndex][item.hour] = {
         sessions: item.sessions,
-        engagedSessions: item.engagedSessions
+        engagedSessions: item.engaged
       };
     }
   });
 
   // Calculate min, median, and max for color scaling
   const allSessions = data.map(d => d.sessions).filter(s => s > 0);
-  const minSessions = Math.min(...allSessions);
-  const maxSessions = Math.max(...allSessions);
-  const medianSessions = allSessions.sort((a, b) => a - b)[Math.floor(allSessions.length / 2)];
+  const minSessions = allSessions.length > 0 ? Math.min(...allSessions) : 0;
+  const maxSessions = allSessions.length > 0 ? Math.max(...allSessions) : 0;
+  const medianSessions = allSessions.length > 0 ? allSessions.sort((a, b) => a - b)[Math.floor(allSessions.length / 2)] : 0;
 
   // Get color intensity based on sessions using Riksbyggen red colors
   const getColorIntensity = (sessions: number) => {
     if (sessions === 0) return 'bg-gray-50 dark:bg-gray-800';
+    if (maxSessions === minSessions) return 'bg-red-200 dark:bg-red-800/60';
     
     const intensity = (sessions - minSessions) / (maxSessions - minSessions);
     
@@ -42,8 +47,6 @@ export function UsageHeatmap({ data, onClick }: Props) {
     if (intensity < 0.8) return 'bg-red-300 dark:bg-red-700/80';
     return 'bg-red-500 dark:bg-red-500';
   };
-
-  const weekdays = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
 
   return (
     <div 
