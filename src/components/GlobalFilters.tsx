@@ -26,12 +26,13 @@ export function useFilters() {
 const STORAGE_KEY = 'dashboard-filters';
 
 export function FiltersProvider({ children }: { children: React.ReactNode }) {
-  const today = new Date();
-  const start = new Date(today);
-  // Default to senaste 7 dagarna
-  start.setDate(start.getDate() - 6);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1); // GA4 style: end on yesterday
+  const start28DaysAgo = new Date(yesterday);
+  // Default to senaste 28 dagarna (ending yesterday)
+  start28DaysAgo.setDate(start28DaysAgo.getDate() - 27);
   const defaultState: FilterState = {
-    range: { start: start.toISOString().slice(0, 10), end: today.toISOString().slice(0, 10), compareYoy: true, comparisonMode: 'yoy', grain: "day" },
+    range: { start: start28DaysAgo.toISOString().slice(0, 10), end: yesterday.toISOString().slice(0, 10), compareYoy: true, comparisonMode: 'yoy', grain: "day" },
     device: [],
     channel: [],
   };
@@ -85,7 +86,7 @@ export default function GlobalFilters() {
     return nd;
   };
   const lastNDays = (n: number) => {
-    const end = new Date();
+    const end = addDays(new Date(), -1); // GA4 style: end on yesterday
     const start = addDays(end, -(n - 1));
     return { start: toIso(start), end: toIso(end) };
   };
@@ -98,7 +99,7 @@ export default function GlobalFilters() {
     return { start: toIso(d), end: toIso(d) };
   };
   const lastTwelveMonths = () => {
-    const end = new Date();
+    const end = addDays(new Date(), -1); // GA4 style: end on yesterday
     const start = new Date(end);
     // Start from the next day after the same date 12 months ago (GA4-like rolling window)
     start.setFullYear(start.getFullYear() - 1);
@@ -139,7 +140,10 @@ export default function GlobalFilters() {
       const yStr = toIso(y);
       if (startStr === yStr && endStr === yStr) return setPreset("yesterday");
 
-      if (endStr === todayStr) {
+      // Check if end date is yesterday (GA4 style)
+      const yesterday = addDays(new Date(), -1);
+      const yesterdayStr = toIso(yesterday);
+      if (endStr === yesterdayStr) {
         if (daysInclusive === 7) return setPreset("last7");
         if (daysInclusive === 28) return setPreset("last28");
         if (daysInclusive === 30) return setPreset("last30");

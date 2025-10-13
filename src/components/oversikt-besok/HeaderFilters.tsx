@@ -52,28 +52,28 @@ const PRESET_RANGES = [
     label: 'Senaste 7 dagarna', 
     getRange: () => ({
       start: dayjs().subtract(7, 'day').format('YYYY-MM-DD'),
-      end: dayjs().format('YYYY-MM-DD')
+      end: dayjs().subtract(1, 'day').format('YYYY-MM-DD') // GA4 style: end yesterday
     })
   },
   { 
     label: 'Senaste 30 dagarna', 
     getRange: () => ({
       start: dayjs().subtract(30, 'day').format('YYYY-MM-DD'),
-      end: dayjs().format('YYYY-MM-DD')
+      end: dayjs().subtract(1, 'day').format('YYYY-MM-DD') // GA4 style: end yesterday
     })
   },
   { 
     label: 'Senaste 3 månaderna', 
     getRange: () => ({
       start: dayjs().subtract(3, 'month').format('YYYY-MM-DD'),
-      end: dayjs().format('YYYY-MM-DD')
+      end: dayjs().subtract(1, 'day').format('YYYY-MM-DD') // GA4 style: end yesterday
     })
   },
   { 
     label: 'Senaste 12 månaderna', 
     getRange: () => ({
       start: dayjs().subtract(12, 'month').format('YYYY-MM-DD'),
-      end: dayjs().format('YYYY-MM-DD')
+      end: dayjs().subtract(1, 'day').format('YYYY-MM-DD') // GA4 style: end yesterday
     })
   },
 ];
@@ -108,8 +108,8 @@ export function HeaderFilters({ searchParams, onFiltersChange, disabled = false 
 
   const handleReset = () => {
     const defaultRange = {
-      start: dayjs().subtract(6, 'day').format('YYYY-MM-DD'),
-      end: dayjs().format('YYYY-MM-DD'),
+      start: dayjs().subtract(28, 'day').format('YYYY-MM-DD'),
+      end: dayjs().subtract(1, 'day').format('YYYY-MM-DD'), // GA4 style: end yesterday
     };
     setLocalStart(defaultRange.start);
     setLocalEnd(defaultRange.end);

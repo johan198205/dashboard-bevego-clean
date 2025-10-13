@@ -23,8 +23,6 @@ export function GeoTopCities({ data, onClick }: Props) {
       setCompareMode(compare);
     }
   }, [urlSearchParams]);
-  const [previousCities, setPreviousCities] = useState<Split[] | null>(null);
-  const [loadingPrev, setLoadingPrev] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   // All cities sorted desc - show all data as it comes from GA4 API
@@ -95,52 +93,7 @@ export function GeoTopCities({ data, onClick }: Props) {
     return result;
   }
 
-  // Fetch previous period/year cities
-  useEffect(() => {
-    const sp = new URLSearchParams(urlSearchParams.toString());
-    const { start, end, apiParams } = buildFilterParams(sp);
-    if (!start || !end) return;
-    
-    const range = getPrevRange(start, end);
-    console.log('Fetching previous data for range:', range, 'compareMode:', compareMode);
-    
-    const query = new URLSearchParams(apiParams);
-    query.set('start', range.start);
-    query.set('end', range.end);
-    // Add compare parameter to API call
-    query.set('compare', compareMode);
-
-    const url = `/api/ga4/overview?${query.toString()}`;
-    console.log('Fetching URL:', url);
-    
-    setLoadingPrev(true);
-    fetch(url)
-      .then((r) => {
-        console.log('Response status:', r.status);
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((payload) => {
-        console.log('Previous cities payload:', payload);
-        console.log('Previous cities data:', payload?.cities);
-        setPreviousCities(payload?.cities || null);
-      })
-      .catch((err) => {
-        console.error('Failed to fetch previous cities:', err || 'Unknown error');
-        setPreviousCities(null);
-      })
-      .finally(() => setLoadingPrev(false));
-  }, [compareMode, urlSearchParams, data]); // Added data dependency to trigger when current data changes
-
-  const prevByCity = useMemo(() => {
-    const map = new Map<string, number>();
-    (previousCities || []).forEach((c) => {
-      map.set(c.key, c.sessions);
-      console.log(`Previous city: ${c.key} = ${c.sessions} sessions`);
-    });
-    console.log('Previous cities map:', map);
-    return map;
-  }, [previousCities]);
+  // No need to fetch previous period data since comparisonPct is already provided by API
 
   return (
     <div 
@@ -164,13 +117,13 @@ export function GeoTopCities({ data, onClick }: Props) {
         </div>
         <div className="divide-y divide-gray-200 dark:divide-gray-800">
           {cities.map((city) => {
-            const prev = prevByCity.get(city.key) ?? undefined;
-            const deltaPct = prev && prev > 0 ? ((city.sessions - prev) / prev) * 100 : undefined;
-            const deltaColor = deltaPct === undefined ? 'text-gray-400' : deltaPct >= 0 ? 'text-green-600' : 'text-red-600';
-            const badgeColor = deltaPct === undefined ? 'bg-gray-100 text-gray-600' : deltaPct >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+            // Use comparisonPct from API instead of calculating manually
+            const deltaPct = city.comparisonPct;
+            const deltaColor = deltaPct === undefined || deltaPct === 0 ? 'text-gray-400' : deltaPct >= 0 ? 'text-green-600' : 'text-red-600';
+            const badgeColor = deltaPct === undefined || deltaPct === 0 ? 'bg-gray-100 text-gray-600' : deltaPct >= 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
             
             // Debug logging
-            console.log(`City: ${city.key}, Current: ${city.sessions}, Previous: ${prev}, Delta: ${deltaPct}, Mode: ${compareMode}`);
+            console.log(`City: ${city.key}, Current: ${city.sessions}, ComparisonPct: ${deltaPct}, Mode: ${compareMode}`);
             
             return (
               <div key={city.key} className="grid grid-cols-12 px-3 py-2 items-center">
@@ -183,13 +136,11 @@ export function GeoTopCities({ data, onClick }: Props) {
                 </div>
                 <div className="col-span-2 text-right text-gray-700 dark:text-gray-300">{formatPercent(city.engagementRatePct)}</div>
                 <div className="col-span-2 text-right">
-                  {loadingPrev ? (
-                    <span className="text-gray-400">laddar…</span>
-                  ) : prev === undefined ? (
-                    <span className="text-gray-400" title={`No previous data for ${city.key}`}>–</span>
+                  {deltaPct === undefined || deltaPct === 0 ? (
+                    <span className="text-gray-400" title={`No comparison data for ${city.key}`}>–</span>
                   ) : (
-                    <span className={`inline-flex items-center justify-end rounded-full px-2 py-0.5 text-xs ${badgeColor}`} title={`Previous: ${formatNumber(prev)}`}>
-                      {deltaPct! >= 0 ? '+' : ''}{formatPercent(Math.abs(deltaPct!))}
+                    <span className={`inline-flex items-center justify-end rounded-full px-2 py-0.5 text-xs ${badgeColor}`}>
+                      {deltaPct >= 0 ? '+' : ''}{formatPercent(Math.abs(deltaPct))}
                     </span>
                   )}
                 </div>

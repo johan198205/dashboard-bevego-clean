@@ -185,12 +185,12 @@ export function Distributions({ title, data, type, totalSessions, onClick, hideT
                       {formatPercent((item.sessions / finalTotalSessions) * 100)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {item.engagementRatePct !== undefined ? (
+                      {item.comparisonPct !== undefined ? (
                         <StatusPill 
-                          variant={item.engagementRatePct >= 0 ? "success" : "error"}
+                          variant={item.comparisonPct >= 0 ? "success" : "error"}
                           size="sm"
                         >
-                          {item.engagementRatePct >= 0 ? "+" : ""}{item.engagementRatePct.toFixed(1)}%
+                          {item.comparisonPct >= 0 ? "+" : ""}{item.comparisonPct.toFixed(1)}%
                         </StatusPill>
                       ) : (
                         <span className="text-neutral-400">–</span>

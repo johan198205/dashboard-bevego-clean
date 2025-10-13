@@ -230,6 +230,12 @@ function generateTopPagesData(compare: string) {
 }
 
 export async function GET(req: NextRequest) {
+  // Calculate comparison function - define at top level
+  const calculateComparison = (current: number, previous: number) => {
+    if (previous === 0) return 0;
+    return Math.round(((current - previous) / previous) * 100 * 100) / 100; // Round to 2 decimals
+  };
+
   try {
     const url = new URL(req.url);
     const start = url.searchParams.get('start');
@@ -242,6 +248,226 @@ export async function GET(req: NextRequest) {
         JSON.stringify({ error: 'Missing required parameters: start, end' }),
         { status: 400, headers: { 'content-type': 'application/json' } }
       );
+    }
+
+    // Try to get real GA4 data first
+    try {
+      const { getGA4Client } = await import('@/lib/ga4');
+      const client = getGA4Client();
+      
+      console.log('GA4 Overview API: Fetching real GA4 data for', start, 'to', end);
+      
+      // Get summary KPIs from GA4
+      const summaryData = await client.getSummaryKPIs(start, end);
+      
+      // Get timeseries data from GA4
+      const timeseriesData = await client.getTimeseries(start, end);
+      
+            // Get channel data
+            const channels = await client.getChannelDistribution(start, end);
+
+            // Get device data
+            const devices = await client.getDeviceDistribution(start, end);
+
+            // Get city data
+            const cities = await client.getTopCities(start, end);
+
+            // Calculate comparison data for channels, devices, and cities
+            let channelComparison = channels.map(channel => ({ ...channel, comparisonPct: 0 }));
+            let deviceComparison = devices.map(device => ({ ...device, comparisonPct: 0 }));
+            let cityComparison = cities.map(city => ({ ...city, comparisonPct: 0 }));
+            
+            // Only calculate comparisons if comparison mode is specified
+            if (compare === 'yoy' || compare === 'prev') {
+              try {
+                if (compare === 'yoy') {
+                  // Get same period last year
+                  const lastYearStart = new Date(start);
+                  const lastYearEnd = new Date(end);
+                  lastYearStart.setFullYear(lastYearStart.getFullYear() - 1);
+                  lastYearEnd.setFullYear(lastYearEnd.getFullYear() - 1);
+                  
+                  const lastYearChannels = await client.getChannelDistribution(
+                    lastYearStart.toISOString().slice(0, 10), 
+                    lastYearEnd.toISOString().slice(0, 10)
+                  );
+                  
+                  channelComparison = channels.map(channel => {
+                    const lastYearChannel = lastYearChannels.find(c => c.key === channel.key);
+                    return {
+                      ...channel,
+                      comparisonPct: lastYearChannel ? calculateComparison(channel.sessions, lastYearChannel.sessions) : 0
+                    };
+                  });
+                  
+                  // Get device comparison data for same period last year
+                  const lastYearDevices = await client.getDeviceDistribution(
+                    lastYearStart.toISOString().slice(0, 10), 
+                    lastYearEnd.toISOString().slice(0, 10)
+                  );
+                  
+                  deviceComparison = devices.map(device => {
+                    const lastYearDevice = lastYearDevices.find(d => d.key === device.key);
+                    return {
+                      ...device,
+                      comparisonPct: lastYearDevice ? calculateComparison(device.sessions, lastYearDevice.sessions) : 0
+                    };
+                  });
+                  
+                  // Get city comparison data for same period last year
+                  const lastYearCities = await client.getTopCities(
+                    lastYearStart.toISOString().slice(0, 10), 
+                    lastYearEnd.toISOString().slice(0, 10)
+                  );
+                  
+                  cityComparison = cities.map(city => {
+                    const lastYearCity = lastYearCities.find(c => c.key === city.key);
+                    return {
+                      ...city,
+                      comparisonPct: lastYearCity ? calculateComparison(city.sessions, lastYearCity.sessions) : 0
+                    };
+                  });
+                } else if (compare === 'prev') {
+                  // Get previous period
+                  const periodLength = Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24));
+                  const prevEnd = new Date(start);
+                  prevEnd.setDate(prevEnd.getDate() - 1);
+                  const prevStart = new Date(prevEnd);
+                  prevStart.setDate(prevStart.getDate() - periodLength + 1);
+                  
+                  const prevChannels = await client.getChannelDistribution(
+                    prevStart.toISOString().slice(0, 10), 
+                    prevEnd.toISOString().slice(0, 10)
+                  );
+                  
+                  channelComparison = channels.map(channel => {
+                    const prevChannel = prevChannels.find(c => c.key === channel.key);
+                    return {
+                      ...channel,
+                      comparisonPct: prevChannel ? calculateComparison(channel.sessions, prevChannel.sessions) : 0
+                    };
+                  });
+                  
+                  // Get device comparison data for previous period
+                  const prevDevices = await client.getDeviceDistribution(
+                    prevStart.toISOString().slice(0, 10), 
+                    prevEnd.toISOString().slice(0, 10)
+                  );
+                  
+                  deviceComparison = devices.map(device => {
+                    const prevDevice = prevDevices.find(d => d.key === device.key);
+                    return {
+                      ...device,
+                      comparisonPct: prevDevice ? calculateComparison(device.sessions, prevDevice.sessions) : 0
+                    };
+                  });
+                  
+                  // Get city comparison data for previous period
+                  const prevCities = await client.getTopCities(
+                    prevStart.toISOString().slice(0, 10), 
+                    prevEnd.toISOString().slice(0, 10)
+                  );
+                  
+                  cityComparison = cities.map(city => {
+                    const prevCity = prevCities.find(c => c.key === city.key);
+                    return {
+                      ...city,
+                      comparisonPct: prevCity ? calculateComparison(city.sessions, prevCity.sessions) : 0
+                    };
+                  });
+                }
+              } catch (comparisonError) {
+                console.error('Failed to calculate channel comparisons:', comparisonError);
+                // Keep default comparison values (0%)
+              }
+            }
+      
+            // Get top pages data
+            const topPages = await client.getTopPages(start, end);
+
+            // Get top referrers data
+            const referrers = await client.getTopReferrers(start, end);
+
+            // Get comparison data for the same period last year or previous period
+            let comparisonData = null;
+            if (compare === 'yoy') {
+              // Get same period last year
+              const lastYearStart = new Date(start);
+              const lastYearEnd = new Date(end);
+              lastYearStart.setFullYear(lastYearStart.getFullYear() - 1);
+              lastYearEnd.setFullYear(lastYearEnd.getFullYear() - 1);
+              
+              const lastYearSummary = await client.getSummaryKPIs(
+                lastYearStart.toISOString().slice(0, 10),
+                lastYearEnd.toISOString().slice(0, 10)
+              );
+              
+              comparisonData = {
+                sessions: calculateComparison(summaryData.sessions, lastYearSummary.sessions),
+                totalUsers: calculateComparison(summaryData.totalUsers, lastYearSummary.totalUsers),
+                returningUsers: calculateComparison(summaryData.returningUsers, lastYearSummary.returningUsers),
+                engagedSessions: calculateComparison(summaryData.engagedSessions, lastYearSummary.engagedSessions),
+                engagementRatePct: calculateComparison(summaryData.engagementRatePct, lastYearSummary.engagementRatePct),
+                avgEngagementTimePct: calculateComparison(summaryData.avgEngagementTimeSec, lastYearSummary.avgEngagementTimeSec),
+                pageviews: calculateComparison(summaryData.pageviews, lastYearSummary.pageviews),
+                pagesPerSession: calculateComparison(summaryData.pagesPerSession, lastYearSummary.pagesPerSession)
+              };
+            } else if (compare === 'prev') {
+              // Get previous period (same length as current period)
+              const periodLength = Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / (1000 * 60 * 60 * 24));
+              const prevEnd = new Date(start);
+              prevEnd.setDate(prevEnd.getDate() - 1);
+              const prevStart = new Date(prevEnd);
+              prevStart.setDate(prevStart.getDate() - periodLength + 1);
+              
+              const prevSummary = await client.getSummaryKPIs(
+                prevStart.toISOString().slice(0, 10),
+                prevEnd.toISOString().slice(0, 10)
+              );
+              
+              comparisonData = {
+                sessions: calculateComparison(summaryData.sessions, prevSummary.sessions),
+                totalUsers: calculateComparison(summaryData.totalUsers, prevSummary.totalUsers),
+                returningUsers: calculateComparison(summaryData.returningUsers, prevSummary.returningUsers),
+                engagedSessions: calculateComparison(summaryData.engagedSessions, prevSummary.engagedSessions),
+                engagementRatePct: calculateComparison(summaryData.engagementRatePct, prevSummary.engagementRatePct),
+                avgEngagementTimePct: calculateComparison(summaryData.avgEngagementTimeSec, prevSummary.avgEngagementTimeSec),
+                pageviews: calculateComparison(summaryData.pageviews, prevSummary.pageviews),
+                pagesPerSession: calculateComparison(summaryData.pagesPerSession, prevSummary.pagesPerSession)
+              };
+            }
+
+            const realData = {
+              summary: {
+                sessions: summaryData.sessions,
+                users: summaryData.totalUsers,
+                totalUsers: summaryData.totalUsers,
+                returningUsers: summaryData.returningUsers,
+                engagedSessions: summaryData.engagedSessions,
+                engagementRatePct: summaryData.engagementRatePct,
+                avgEngagementTimeSec: summaryData.avgEngagementTimeSec,
+                pageviews: summaryData.pageviews,
+                pagesPerSession: summaryData.pagesPerSession,
+                pageViews: summaryData.pageviews,
+                avgSessionDuration: summaryData.avgEngagementTimeSec,
+                bounceRate: 100 - summaryData.engagementRatePct, // Approximate bounce rate
+                engagementRate: summaryData.engagementRatePct / 100,
+                // Add real comparison deltas based on comparison mode
+                deltasYoY: comparisonData
+              },
+              timeseries: timeseriesData,
+              channels: channelComparison,
+              devices: deviceComparison,
+              cities: cityComparison,
+              weekdayHour: generateWeekdayHourData(), // Keep mock data for now
+              topPages: topPages,
+              referrers: referrers, // Use real referrer data
+              notes: ['Källa: GA4 API']
+      };
+
+      return Response.json(realData);
+    } catch (ga4Error) {
+      console.error('GA4 Overview API: Failed to fetch real data, falling back to mock data:', ga4Error);
     }
 
     console.log('GA4 Overview API: Returning mock data for', start, 'to', end);
@@ -309,7 +535,12 @@ export async function GET(req: NextRequest) {
       cities,
       weekdayHour,
       topPages,
-      referrers: topPages, // Use topPages as referrers for now
+      referrers: topPages.map(page => ({
+        key: page.key || 'Unknown',
+        sessions: page.sessions || 0,
+        avgEngagementTimeSec: page.avgSessionDuration || 0,
+        engagementRatePct: page.engagementRatePct || 0
+      })), // Map to referrer format
       notes: ['Källa: Mockdata för GA4 Dashboard']
     };
 
@@ -361,7 +592,12 @@ export async function GET(req: NextRequest) {
       cities: generateCitiesData('yoy'),
       weekdayHour: generateWeekdayHourData(),
       topPages: generateTopPagesData('yoy'),
-      referrers: generateTopPagesData('yoy'),
+      referrers: generateTopPagesData('yoy').map(page => ({
+        key: page.key || 'Unknown',
+        sessions: page.sessions || 0,
+        avgEngagementTimeSec: page.avgSessionDuration || 0,
+        engagementRatePct: page.engagementRatePct || 0
+      })),
       notes: ['Källa: Fallback mockdata - GA4 API fel']
     };
 

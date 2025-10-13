@@ -37,10 +37,10 @@ export default function ReferralTable({ data = [], totalSessions = 0 }: Props) {
           const totalPercentage = totalSessions > 0 ? (referrer.sessions / totalSessions) * 100 : 0;
           
           // Clean up referrer URL for display
-          let displayUrl = referrer.key;
+          let displayUrl = referrer.key || 'Unknown';
           if (referrer.key === '(direct)') {
             displayUrl = '(direct)';
-          } else if (referrer.key.startsWith('http')) {
+          } else if (referrer.key && referrer.key.startsWith('http')) {
             // For URLs, show just the domain for cleaner display
             try {
               const url = new URL(referrer.key);
@@ -48,10 +48,13 @@ export default function ReferralTable({ data = [], totalSessions = 0 }: Props) {
             } catch {
               displayUrl = referrer.key;
             }
+          } else if (referrer.key && referrer.key.startsWith('/')) {
+            // For internal paths, show just the path without query parameters
+            displayUrl = referrer.key.split('?')[0];
           }
           
           return (
-            <div key={referrer.key} className="space-y-1">
+            <div key={referrer.key || `referrer-${index}`} className="space-y-1">
               <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-700 dark:text-gray-300 truncate max-w-[200px]" title={referrer.key}>
                   {displayUrl}

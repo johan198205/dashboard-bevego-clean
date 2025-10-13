@@ -22,12 +22,13 @@ type Props = {
   searchParams: Promise<SearchParams>;
 };
 
-// Helper function to get default date range (last 7 days)
+// Helper function to get default date range (last 28 days)
 function getDefaultDateRange() {
   const end = new Date();
-  const start = new Date();
-  // Default: senaste 7 dagarna
-  start.setDate(start.getDate() - 6);
+  end.setDate(end.getDate() - 1); // GA4 style: end on yesterday
+  const start = new Date(end);
+  // Default: senaste 28 dagarna (ending yesterday)
+  start.setDate(start.getDate() - 27);
   
   return {
     start: start.toISOString().slice(0, 10),
@@ -61,7 +62,7 @@ export default async function OverviewPage({ searchParams }: Props) {
   let initialError = null;
   
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}${apiUrl}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:4003'}${apiUrl}`, {
       next: { revalidate: 300 } // Cache for 5 minutes
     });
     
