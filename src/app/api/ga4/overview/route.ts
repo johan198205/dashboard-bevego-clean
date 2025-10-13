@@ -95,6 +95,140 @@ function generateDeviceData(compare: string) {
   ];
 }
 
+function generateCitiesData(compare: string) {
+  const getComparisonData = () => {
+    if (compare === 'yoy') {
+      return {
+        'Stockholm': 18.2,
+        'Göteborg': 12.5,
+        'Malmö': 8.7,
+        'Uppsala': 15.3,
+        'Linköping': -2.1,
+        'Örebro': 22.4,
+        'Västerås': 11.8,
+        'Helsingborg': 7.9,
+        'Jönköping': 14.6,
+        'Norrköping': -5.3
+      };
+    } else if (compare === 'prev') {
+      return {
+        'Stockholm': 3.4,
+        'Göteborg': -1.2,
+        'Malmö': 7.8,
+        'Uppsala': 2.1,
+        'Linköping': -4.6,
+        'Örebro': 9.3,
+        'Västerås': 5.7,
+        'Helsingborg': -2.8,
+        'Jönköping': 6.2,
+        'Norrköping': 1.9
+      };
+    }
+    return {};
+  };
+
+  const comparisonData = getComparisonData();
+
+  return [
+    { key: 'Stockholm', sessions: 234, users: 198, avgSessionDuration: 245, bounceRate: 42.3, engagementRatePct: comparisonData['Stockholm'] },
+    { key: 'Göteborg', sessions: 189, users: 156, avgSessionDuration: 198, bounceRate: 38.7, engagementRatePct: comparisonData['Göteborg'] },
+    { key: 'Malmö', sessions: 134, users: 112, avgSessionDuration: 167, bounceRate: 48.2, engagementRatePct: comparisonData['Malmö'] },
+    { key: 'Uppsala', sessions: 98, users: 89, avgSessionDuration: 189, bounceRate: 52.1, engagementRatePct: comparisonData['Uppsala'] },
+    { key: 'Linköping', sessions: 67, users: 58, avgSessionDuration: 234, bounceRate: 35.4, engagementRatePct: comparisonData['Linköping'] },
+    { key: 'Örebro', sessions: 45, users: 38, avgSessionDuration: 156, bounceRate: 44.8, engagementRatePct: comparisonData['Örebro'] },
+    { key: 'Västerås', sessions: 34, users: 29, avgSessionDuration: 178, bounceRate: 41.2, engagementRatePct: comparisonData['Västerås'] },
+    { key: 'Helsingborg', sessions: 28, users: 24, avgSessionDuration: 192, bounceRate: 46.7, engagementRatePct: comparisonData['Helsingborg'] },
+    { key: 'Jönköping', sessions: 23, users: 19, avgSessionDuration: 165, bounceRate: 43.1, engagementRatePct: comparisonData['Jönköping'] },
+    { key: 'Norrköping', sessions: 19, users: 16, avgSessionDuration: 187, bounceRate: 39.8, engagementRatePct: comparisonData['Norrköping'] }
+  ];
+}
+
+function generateWeekdayHourData() {
+  const weekdays = ['Sön', 'Mån', 'Tis', 'Ons', 'Tor', 'Fre', 'Lör'];
+  const data = [];
+  
+  for (let day = 0; day < 7; day++) {
+    for (let hour = 0; hour < 24; hour++) {
+      // Generate realistic traffic patterns
+      let baseSessions = 0;
+      
+      // Weekday vs weekend patterns
+      if (day >= 1 && day <= 5) { // Weekdays
+        if (hour >= 9 && hour <= 17) {
+          baseSessions = 45 + Math.random() * 25; // 45-70 during work hours
+        } else if (hour >= 18 && hour <= 22) {
+          baseSessions = 25 + Math.random() * 15; // 25-40 evening
+        } else {
+          baseSessions = 5 + Math.random() * 10; // 5-15 off hours
+        }
+      } else { // Weekends
+        if (hour >= 10 && hour <= 20) {
+          baseSessions = 20 + Math.random() * 20; // 20-40 during day
+        } else {
+          baseSessions = 3 + Math.random() * 7; // 3-10 off hours
+        }
+      }
+      
+      data.push({
+        weekday: weekdays[day],
+        hour: hour,
+        sessions: Math.round(baseSessions),
+        engaged: Math.round(baseSessions * 0.75)
+      });
+    }
+  }
+  
+  return data;
+}
+
+function generateTopPagesData(compare: string) {
+  const getComparisonData = () => {
+    if (compare === 'yoy') {
+      return {
+        '/': 22.4,
+        '/produkter': 15.7,
+        '/om-oss': 8.9,
+        '/kontakt': -3.2,
+        '/blogg': 18.6,
+        '/support': 12.1,
+        '/priser': 7.3,
+        '/demo': -1.8,
+        '/integrationer': 14.2,
+        '/resurser': 9.5
+      };
+    } else if (compare === 'prev') {
+      return {
+        '/': 4.2,
+        '/produkter': -1.7,
+        '/om-oss': 6.8,
+        '/kontakt': 2.1,
+        '/blogg': -2.3,
+        '/support': 5.9,
+        '/priser': 3.4,
+        '/demo': -0.8,
+        '/integrationer': 7.2,
+        '/resurser': 1.6
+      };
+    }
+    return {};
+  };
+
+  const comparisonData = getComparisonData();
+
+  return [
+    { key: '/', sessions: 234, users: 198, avgSessionDuration: 245, bounceRate: 42.3, engagementRatePct: comparisonData['/'] },
+    { key: '/produkter', sessions: 189, users: 156, avgSessionDuration: 198, bounceRate: 38.7, engagementRatePct: comparisonData['/produkter'] },
+    { key: '/om-oss', sessions: 134, users: 112, avgSessionDuration: 167, bounceRate: 48.2, engagementRatePct: comparisonData['/om-oss'] },
+    { key: '/kontakt', sessions: 98, users: 89, avgSessionDuration: 189, bounceRate: 52.1, engagementRatePct: comparisonData['/kontakt'] },
+    { key: '/blogg', sessions: 67, users: 58, avgSessionDuration: 234, bounceRate: 35.4, engagementRatePct: comparisonData['/blogg'] },
+    { key: '/support', sessions: 45, users: 38, avgSessionDuration: 156, bounceRate: 44.8, engagementRatePct: comparisonData['/support'] },
+    { key: '/priser', sessions: 34, users: 29, avgSessionDuration: 178, bounceRate: 41.2, engagementRatePct: comparisonData['/priser'] },
+    { key: '/demo', sessions: 28, users: 24, avgSessionDuration: 192, bounceRate: 46.7, engagementRatePct: comparisonData['/demo'] },
+    { key: '/integrationer', sessions: 23, users: 19, avgSessionDuration: 165, bounceRate: 43.1, engagementRatePct: comparisonData['/integrationer'] },
+    { key: '/resurser', sessions: 19, users: 16, avgSessionDuration: 187, bounceRate: 39.8, engagementRatePct: comparisonData['/resurser'] }
+  ];
+}
+
 export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
@@ -116,6 +250,9 @@ export async function GET(req: NextRequest) {
     const timeseries = generateTimeseries(start, end);
     const channels = generateChannelData(compare);
     const devices = generateDeviceData(compare);
+    const cities = generateCitiesData(compare);
+    const weekdayHour = generateWeekdayHourData();
+    const topPages = generateTopPagesData(compare);
     
     // Calculate summary totals
     const totalSessions = timeseries.reduce((sum, day) => sum + day.sessions, 0);
@@ -169,8 +306,10 @@ export async function GET(req: NextRequest) {
       timeseries,
       channels,
       devices,
-      weekdayHour: [], // Empty for now
-      topPages: [], // Empty for now
+      cities,
+      weekdayHour,
+      topPages,
+      referrers: topPages, // Use topPages as referrers for now
       notes: ['Källa: Mockdata för GA4 Dashboard']
     };
 
@@ -219,8 +358,10 @@ export async function GET(req: NextRequest) {
       timeseries: generateTimeseries('2025-10-07', '2025-10-13'),
       channels: generateChannelData('yoy'),
       devices: generateDeviceData('yoy'),
-      weekdayHour: [],
-      topPages: [],
+      cities: generateCitiesData('yoy'),
+      weekdayHour: generateWeekdayHourData(),
+      topPages: generateTopPagesData('yoy'),
+      referrers: generateTopPagesData('yoy'),
       notes: ['Källa: Fallback mockdata - GA4 API fel']
     };
 
