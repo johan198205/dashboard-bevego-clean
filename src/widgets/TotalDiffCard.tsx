@@ -136,20 +136,20 @@ export default function TotalDiffCard({ title, metric, range }: Props) {
   }, [metric, state.range.comparisonMode]);
 
   const getCompareSeries = useMemo(() => async ({ start, end, grain, filters }: any) => {
-    const res = await fetchKpi({ metric, start, end, grain, comparisonMode: state.range.comparisonMode, filters });
-    const currentPoints = res.timeseries || [];
-    const comparisonPoints = res.compareTimeseries || [];
+    // Temporarily hide comparison functionality
+    // TODO: Re-enable when YoY comparison alignment is fixed
+    return [] as { x: number; y: number }[];
     
-    // Use alignYoySeries to properly align comparison data with current period
-    const alignedData = alignYoySeries(currentPoints, comparisonPoints);
-    
-    return alignedData.map(({ current, previous }) => {
-      if (!current || !previous) return null;
-      return { 
-        x: new Date(current.date).getTime(), 
-        y: previous.value 
-      };
-    }).filter(Boolean);
+    // Original comparison logic (commented out for now):
+    // const res = await fetchKpi({ metric, start, end, grain, comparisonMode: state.range.comparisonMode, filters });
+    // const comparisonPoints = res.compareTimeseries || [];
+    // 
+    // // Backend now returns properly aligned comparison data with current period dates
+    // // but previous year values, so we can use it directly
+    // return comparisonPoints.map((p) => ({
+    //   x: new Date(p.date).getTime(),
+    //   y: p.value
+    // }));
   }, [metric, state.range.comparisonMode]);
 
   return (

@@ -223,6 +223,46 @@ export async function GET(req: NextRequest) {
           client.getReturningCustomersCount(prevRange.start, prevRange.end, filters),
         ]);
 
+        // Align comparison timeseries with current period for proper YoY comparison
+        let alignedComparisonTimeseries = prevTimeseries;
+        if (compare === 'yoy') {
+          const { alignYoySeries } = require('@/lib/yoy');
+          
+          // Create aligned comparison timeseries with current period dates but previous year values
+          alignedComparisonTimeseries = currentTimeseries.map((currentPoint: any) => {
+            // Find matching previous year point by month
+            const currentDate = new Date(currentPoint.date);
+            const currentMonth = currentDate.getMonth(); // 0-11
+            const currentDay = currentDate.getDate();
+            
+            // For monthly data, match by month only
+            // For daily data, match by month and day
+            const matchingPrevPoint = prevTimeseries.find((prevPoint: any) => {
+              const prevDate = new Date(prevPoint.date);
+              if (currentPoint.date.endsWith('-01')) {
+                // Monthly data: match by month only
+                return prevDate.getMonth() === currentMonth;
+              } else {
+                // Daily data: match by month and day
+                return prevDate.getMonth() === currentMonth && prevDate.getDate() === currentDay;
+              }
+            });
+            
+            if (matchingPrevPoint) {
+              return {
+                date: currentPoint.date, // Use current period's date
+                leads: Math.round(matchingPrevPoint.sessions * 0.15),
+                sales: Math.round(matchingPrevPoint.sessions * 0.03),
+                conversion: matchingPrevPoint.sessions > 0 ? (matchingPrevPoint.sessions * 0.03 / matchingPrevPoint.sessions) * 100 : 0,
+                ansok_klick: prevCustomerAppsSeries.find((d: any) => d.date === matchingPrevPoint.date)?.value || 0,
+                ehandel_ansok: prevEcomAppsSeries.find((d: any) => d.date === matchingPrevPoint.date)?.value || 0,
+                form_submit: prevFormLeadsSeries.find((d: any) => d.date === matchingPrevPoint.date)?.value || 0,
+              };
+            }
+            return null;
+          }).filter(Boolean);
+        }
+
         comparisonData = {
           leads: {
             quoteRequests: 0,
@@ -242,15 +282,7 @@ export async function GET(req: NextRequest) {
             cpaCustomers: 500,
             roi: 320,
           },
-          timeseries: prevTimeseries.map((point: any) => ({
-            date: point.date,
-            leads: Math.round(point.sessions * 0.15),
-            sales: Math.round(point.sessions * 0.03),
-            conversion: point.sessions > 0 ? (point.sessions * 0.03 / point.sessions) * 100 : 0,
-            ansok_klick: prevCustomerAppsSeries.find((d: any) => d.date === point.date)?.value || 0,
-            ehandel_ansok: prevEcomAppsSeries.find((d: any) => d.date === point.date)?.value || 0,
-            form_submit: prevFormLeadsSeries.find((d: any) => d.date === point.date)?.value || 0,
-          })),
+          timeseries: alignedComparisonTimeseries,
           channelBreakdown: prevChannels.map((channel: any) => ({
             channel: channel.key,
             leads: Math.round(channel.sessions * 0.15),

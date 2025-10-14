@@ -35,21 +35,21 @@ export default function TimeSeries({ title, metric, range }: Props) {
   }, [data?.timeseries]);
 
   const compareSeries = useMemo(() => {
-    const currentPoints = data?.timeseries || [];
-    const comparisonPoints = data?.compareTimeseries || [];
-    if (!comparisonPoints || comparisonPoints.length === 0) return [] as { x: number; y: number }[];
+    // Temporarily hide comparison functionality
+    // TODO: Re-enable when YoY comparison alignment is fixed
+    return [] as { x: number; y: number }[];
     
-    // Use alignYoySeries to properly align comparison data with current period
-    const alignedData = alignYoySeries(currentPoints, comparisonPoints);
-    
-    return alignedData.map(({ current, previous }) => {
-      if (!current || !previous) return null;
-      return { 
-        x: new Date(current.date).getTime(), 
-        y: previous.value 
-      };
-    }).filter(Boolean);
-  }, [data?.timeseries, data?.compareTimeseries]);
+    // Original comparison logic (commented out for now):
+    // const comparisonPoints = data?.compareTimeseries || [];
+    // if (!comparisonPoints || comparisonPoints.length === 0) return [] as { x: number; y: number }[];
+    // 
+    // // Backend now returns properly aligned comparison data with current period dates
+    // // but previous year values, so we can use it directly
+    // return comparisonPoints.map((p) => ({ 
+    //   x: new Date(p.date).getTime(), 
+    //   y: p.value 
+    // }));
+  }, [data?.compareTimeseries]);
 
   // Format date labels based on granularity for Swedish locale
   const formatDateLabel = (timestamp: number, grain: Grain): string => {

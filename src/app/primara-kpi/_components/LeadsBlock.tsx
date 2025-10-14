@@ -165,28 +165,16 @@ export function LeadsBlock() {
         return currentDay.toString();
       }
     } else if (granularity === 'week') {
-      // pt.date is already the Monday of the week due to aggregation
-      const dayOfMonth = date.getDate();
-      const monthName = date.toLocaleDateString('sv-SE', { month: 'short' });
-
-      // Show month name only for first week or when month changes
-      let showMonth = false;
-      if (index === 0) {
-        showMonth = true; // Always show month for first week
-      } else {
-        // Compare current month with previous week's month
-        const prevPt = arr[index - 1];
-        const prevDate = new Date(prevPt.date);
-        if (date.getMonth() !== prevDate.getMonth()) {
-          showMonth = true;
-        }
-      }
-
-      if (showMonth) {
-        return `${dayOfMonth} ${monthName}`;
-      } else {
-        return String(dayOfMonth);
-      }
+      // Calculate week number (simplified approach)
+      const getWeekNumber = (date: Date) => {
+        const start = new Date(date.getFullYear(), 0, 1);
+        const diff = date.getTime() - start.getTime();
+        const oneWeek = 1000 * 60 * 60 * 24 * 7;
+        return Math.ceil(diff / oneWeek) + 1;
+      };
+      
+      const weekNumber = getWeekNumber(date);
+      return `V.${weekNumber}`;
     } else { // month
       return date.toLocaleDateString('sv-SE', { month: 'short', year: 'numeric' });
     }
@@ -198,12 +186,21 @@ export function LeadsBlock() {
     formLeads: currentTimeseries.map(pt => pt.form_submit || 0),
   };
   
-  // For comparison data, align with current period for proper comparison
+  // Temporarily hide comparison functionality
+  // TODO: Re-enable when YoY comparison alignment is fixed
   const compareSeriesByEvent = {
-    customerApplications: comparisonTimeseries.map(pt => pt.ansok_klick || 0),
-    ecommerceApplications: comparisonTimeseries.map(pt => pt.ehandel_ansok || 0),
-    formLeads: comparisonTimeseries.map(pt => pt.form_submit || 0),
+    customerApplications: [] as number[],
+    ecommerceApplications: [] as number[],
+    formLeads: [] as number[],
   };
+  
+  // Original comparison logic (commented out for now):
+  // // For comparison data, align with current period for proper comparison
+  // const compareSeriesByEvent = {
+  //   customerApplications: comparisonTimeseries.map(pt => pt.ansok_klick || 0),
+  //   ecommerceApplications: comparisonTimeseries.map(pt => pt.ehandel_ansok || 0),
+  //   formLeads: comparisonTimeseries.map(pt => pt.form_submit || 0),
+  // };
 
   // For tooltip: map current x to the exact comparison date label (aligned by index)
   const compareDateByIndex = comparisonTimeseries.map(pt => pt?.date || '');
@@ -600,7 +597,9 @@ export function LeadsBlock() {
               </div>
               
               <span className="badge">Källa: GA4 API</span>
-              <div className="hidden md:flex items-center gap-2 text-xs">
+              {/* Temporarily hide comparison toggle */}
+              {/* TODO: Re-enable when YoY comparison alignment is fixed */}
+              {/* <div className="hidden md:flex items-center gap-2 text-xs">
                 <span>{data?.comparisonMode === 'prev' ? 'Jämför föregående period' : 'Jämför föregående år'}</span>
                 <Switch
                   checked={showCompare}
@@ -608,7 +607,7 @@ export function LeadsBlock() {
                   ariaLabel="Visa föregående period i diagrammet"
                   backgroundSize="sm"
                 />
-              </div>
+              </div> */}
             </div>
           </div>
           {xAxisLabels.length > 0 ? (

@@ -169,10 +169,14 @@ export function buildKpiResponse(metric: string, series: KpiPoint[], previous?: 
     const { alignYoySeries } = require('../yoy');
     const alignedData = alignYoySeries(series, previous);
     
-    // Extract only the previous values that have matching current periods
+    // Create new KpiPoints with current period dates but previous year values
+    // This ensures tooltips show correct comparison dates
     alignedPrevious = alignedData
       .filter(({ current, previous }) => current && previous)
-      .map(({ previous }) => previous!);
+      .map(({ current, previous }) => ({
+        date: current!.date, // Use current period's date
+        value: previous!.value // Use previous year's value
+      }));
     
     // Calculate summary using aligned data
     if (alignedPrevious.length > 0) {
@@ -204,10 +208,14 @@ export function buildAverageKpiResponse(metric: string, series: KpiPoint[], prev
     const { alignYoySeries } = require('../yoy');
     const alignedData = alignYoySeries(series, previous);
     
-    // Extract only the previous values that have matching current periods
+    // Create new KpiPoints with current period dates but previous year values
+    // This ensures tooltips show correct comparison dates
     alignedPrevious = alignedData
       .filter(({ current, previous }) => current && previous)
-      .map(({ previous }) => previous!);
+      .map(({ current, previous }) => ({
+        date: current!.date, // Use current period's date
+        value: previous!.value // Use previous year's value
+      }));
     
     // Calculate average using aligned data
     if (alignedPrevious.length > 0) {
