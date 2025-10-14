@@ -89,15 +89,48 @@ export function SalesBlock() {
     y: point.sales
   }));
 
-  // Align comparison series to the current period's X-axis so lines overlap
+  // Align comparison series to match same periods from previous year
   const rawComparisonChartData = comparison?.timeseries.map(point => ({
     x: new Date(point.date).getTime(),
-    y: point.sales
+    y: point.sales,
+    originalDate: point.date
   })) || [];
-  const comparisonChartData = rawComparisonChartData.map((p, i) => ({
-    x: chartData[i]?.x ?? p.x,
-    y: p.y
-  }));
+  
+  // Create a map of comparison data by period key (month for monthly, month-day for daily/weekly)
+  const comparisonMap = new Map<string, { x: number; y: number }>();
+  rawComparisonChartData.forEach(point => {
+    const date = new Date(point.originalDate);
+    let periodKey: string;
+    
+    if (point.originalDate.endsWith('-01')) {
+      // Monthly data: match by month (MM)
+      periodKey = (date.getMonth() + 1).toString().padStart(2, '0');
+    } else {
+      // Daily or weekly data: match by month-day (MM-DD)
+      periodKey = `${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+    }
+    
+    comparisonMap.set(periodKey, { x: point.x, y: point.y });
+  });
+  
+  // Align comparison data to current period dates
+  const comparisonChartData = chartData.map(currentPoint => {
+    const currentDate = new Date(currentPoint.x);
+    let periodKey: string;
+    
+    // Extract period key from current date
+    const currentDateStr = currentDate.toISOString().slice(0, 10);
+    if (currentDateStr.endsWith('-01')) {
+      // Monthly data: match by month (MM)
+      periodKey = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+    } else {
+      // Daily or weekly data: match by month-day (MM-DD)
+      periodKey = `${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
+    }
+    
+    const comparisonPoint = comparisonMap.get(periodKey);
+    return comparisonPoint ? { x: currentPoint.x, y: comparisonPoint.y } : null;
+  }).filter(Boolean);
 
   // Create series data based on active toggles
   const createSeriesData = () => {
