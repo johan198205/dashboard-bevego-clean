@@ -5,6 +5,7 @@ import type { ApexOptions } from "apexcharts";
 import { getKpi } from "@/lib/resolver";
 import { KpiResponse, Params, Grain } from "@/lib/types";
 import { useFilters } from "@/components/GlobalFilters";
+import { alignYoySeries } from "@/lib/yoy";
 import InfoTooltip from "@/components/InfoTooltip";
 
 type Props = { title: string; metric: Params["metric"]; range: Params["range"] };
@@ -34,11 +35,21 @@ export default function TimeSeries({ title, metric, range }: Props) {
   }, [data?.timeseries]);
 
   const compareSeries = useMemo(() => {
-    const points = data?.compareTimeseries || [];
-    if (!points || points.length === 0) return [] as { x: number; y: number }[];
-    // Index-align: map to same x as current by index to overlay
-    return points.map((p, i) => ({ x: seriesData[i]?.x ?? new Date(p.date).getTime(), y: p.value }));
-  }, [data?.compareTimeseries, seriesData]);
+    const currentPoints = data?.timeseries || [];
+    const comparisonPoints = data?.compareTimeseries || [];
+    if (!comparisonPoints || comparisonPoints.length === 0) return [] as { x: number; y: number }[];
+    
+    // Use alignYoySeries to properly align comparison data with current period
+    const alignedData = alignYoySeries(currentPoints, comparisonPoints);
+    
+    return alignedData.map(({ current, previous }) => {
+      if (!current || !previous) return null;
+      return { 
+        x: new Date(current.date).getTime(), 
+        y: previous.value 
+      };
+    }).filter(Boolean);
+  }, [data?.timeseries, data?.compareTimeseries]);
 
   // Format date labels based on granularity for Swedish locale
   const formatDateLabel = (timestamp: number, grain: Grain): string => {

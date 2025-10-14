@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 // Do not import resolver on client; we call server API instead to avoid bundling GA4 SDK
 import { Params, KpiResponse } from "@/lib/types";
 import { useFilters } from "@/components/GlobalFilters";
+import { alignYoySeries } from "@/lib/yoy";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { ScoreCard } from "@/components/ui/scorecard";
 import { UserIcon, GlobeIcon } from "@/assets/icons";
@@ -136,9 +137,19 @@ export default function TotalDiffCard({ title, metric, range }: Props) {
 
   const getCompareSeries = useMemo(() => async ({ start, end, grain, filters }: any) => {
     const res = await fetchKpi({ metric, start, end, grain, comparisonMode: state.range.comparisonMode, filters });
-    const points = res.compareTimeseries || [];
-    const cur = (res.timeseries || []).map((p) => ({ x: new Date(p.date).getTime(), y: p.value }));
-    return points.map((p, i) => ({ x: cur[i]?.x ?? new Date(p.date).getTime(), y: p.value }));
+    const currentPoints = res.timeseries || [];
+    const comparisonPoints = res.compareTimeseries || [];
+    
+    // Use alignYoySeries to properly align comparison data with current period
+    const alignedData = alignYoySeries(currentPoints, comparisonPoints);
+    
+    return alignedData.map(({ current, previous }) => {
+      if (!current || !previous) return null;
+      return { 
+        x: new Date(current.date).getTime(), 
+        y: previous.value 
+      };
+    }).filter(Boolean);
   }, [metric, state.range.comparisonMode]);
 
   return (
