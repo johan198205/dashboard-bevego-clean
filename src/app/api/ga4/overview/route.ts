@@ -1,30 +1,164 @@
 import { NextRequest } from 'next/server';
 
+// Type definitions for GA4 Overview API
+export interface TimePoint {
+  date: string;
+  sessions: number;
+  users: number;
+  totalUsers: number;
+  returningUsers: number;
+  engagedSessions: number;
+  engagementRatePct: number;
+  avgEngagementTimeSec: number;
+  pageviews: number;
+  pagesPerSession: number;
+  avgSessionDuration: number;
+  bounceRate: number;
+  engagementRate: number;
+}
+
+export interface Summary {
+  sessions: number;
+  users: number;
+  totalUsers: number;
+  returningUsers: number;
+  engagedSessions: number;
+  engagementRatePct: number;
+  avgEngagementTimeSec: number;
+  pageviews: number;
+  pagesPerSession: number;
+  pageViews: number;
+  avgSessionDuration: number;
+  bounceRate: number;
+  engagementRate: number;
+  sampled?: boolean;
+  deltasYoY?: {
+    sessions: number;
+    totalUsers: number;
+    returningUsers: number;
+    engagedSessions: number;
+    engagementRatePct: number;
+    avgEngagementTimePct: number;
+    pageviews: number;
+    pagesPerSession: number;
+  } | null;
+}
+
+export interface Split {
+  key: string;
+  sessions: number;
+  users: number;
+  avgSessionDuration: number;
+  bounceRate: number;
+  engagementRatePct: number;
+  comparisonPct?: number;
+}
+
+export interface WeekdayHour {
+  weekday: string;
+  hour: number;
+  sessions: number;
+  engaged: number;
+}
+
+export interface TopPage {
+  key: string;
+  sessions: number;
+  avgSessionDuration: number;
+  engagementRatePct: number;
+  avgEngagementTimeSec?: number;
+  title?: string;
+  path?: string;
+}
+
+export interface OverviewPayload {
+  summary: Summary;
+  timeseries: TimePoint[];
+  channels: Split[];
+  devices: Split[];
+  cities: Split[];
+  weekdayHour: WeekdayHour[];
+  topPages: TopPage[];
+  referrers: Split[];
+  notes: string[];
+}
+
 // Mock data generator functions
-function generateTimeseries(start: string, end: string) {
+function generateTimeseries(start: string, end: string, grain: 'day' | 'week' | 'month' = 'day') {
   const timeseries = [];
   const startDate = new Date(start);
   const endDate = new Date(end);
   
-  for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const dateStr = d.toISOString().slice(0, 10);
-    const baseSessions = 120 + Math.random() * 80; // 120-200 sessions per day
-    
-    timeseries.push({
-      date: dateStr,
-      sessions: Math.round(baseSessions),
-      users: Math.round(baseSessions * 0.85),
-      totalUsers: Math.round(baseSessions * 0.85),
-      returningUsers: Math.round(baseSessions * 0.35),
-      engagedSessions: Math.round(baseSessions * 0.72),
-      engagementRatePct: 65 + Math.random() * 15, // 65-80%
-      avgEngagementTimeSec: Math.round(180 + Math.random() * 120), // 3-5 minutes
-      pageviews: Math.round(baseSessions * 2.3),
-      pagesPerSession: 2.1 + Math.random() * 0.8, // 2.1-2.9 pages per session
-      avgSessionDuration: Math.round(180 + Math.random() * 120), // 3-5 minutes
-      bounceRate: 45 + Math.random() * 20, // 45-65%
-      engagementRate: 65 + Math.random() * 15 // 65-80%
-    });
+  if (grain === 'day') {
+    // Daily granularity - original logic
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().slice(0, 10);
+      const baseSessions = 120 + Math.random() * 80; // 120-200 sessions per day
+      
+      timeseries.push({
+        date: dateStr,
+        sessions: Math.round(baseSessions),
+        users: Math.round(baseSessions * 0.85),
+        totalUsers: Math.round(baseSessions * 0.85),
+        returningUsers: Math.round(baseSessions * 0.35),
+        engagedSessions: Math.round(baseSessions * 0.72),
+        engagementRatePct: 65 + Math.random() * 15, // 65-80%
+        avgEngagementTimeSec: Math.round(180 + Math.random() * 120), // 3-5 minutes
+        pageviews: Math.round(baseSessions * 2.3),
+        pagesPerSession: 2.1 + Math.random() * 0.8, // 2.1-2.9 pages per session
+        avgSessionDuration: Math.round(180 + Math.random() * 120), // 3-5 minutes
+        bounceRate: 45 + Math.random() * 20, // 45-65%
+        engagementRate: 65 + Math.random() * 15 // 65-80%
+      });
+    }
+  } else if (grain === 'week') {
+    // Weekly granularity - aggregate by weeks
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 7)) {
+      const weekStart = new Date(d);
+      const weekEnd = new Date(Math.min(d.getTime() + 6 * 24 * 60 * 60 * 1000, endDate.getTime()));
+      const dateStr = weekStart.toISOString().slice(0, 10);
+      const baseSessions = (120 + Math.random() * 80) * 7; // 7 days worth of sessions
+      
+      timeseries.push({
+        date: dateStr,
+        sessions: Math.round(baseSessions),
+        users: Math.round(baseSessions * 0.85),
+        totalUsers: Math.round(baseSessions * 0.85),
+        returningUsers: Math.round(baseSessions * 0.35),
+        engagedSessions: Math.round(baseSessions * 0.72),
+        engagementRatePct: 65 + Math.random() * 15, // 65-80%
+        avgEngagementTimeSec: Math.round(180 + Math.random() * 120), // 3-5 minutes
+        pageviews: Math.round(baseSessions * 2.3),
+        pagesPerSession: 2.1 + Math.random() * 0.8, // 2.1-2.9 pages per session
+        avgSessionDuration: Math.round(180 + Math.random() * 120), // 3-5 minutes
+        bounceRate: 45 + Math.random() * 20, // 45-65%
+        engagementRate: 65 + Math.random() * 15 // 65-80%
+      });
+    }
+  } else if (grain === 'month') {
+    // Monthly granularity - aggregate by months
+    for (let d = new Date(startDate); d <= endDate; d.setMonth(d.getMonth() + 1)) {
+      const monthStart = new Date(d.getFullYear(), d.getMonth(), 1);
+      const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      const dateStr = monthStart.toISOString().slice(0, 10);
+      const baseSessions = (120 + Math.random() * 80) * 30; // ~30 days worth of sessions
+      
+      timeseries.push({
+        date: dateStr,
+        sessions: Math.round(baseSessions),
+        users: Math.round(baseSessions * 0.85),
+        totalUsers: Math.round(baseSessions * 0.85),
+        returningUsers: Math.round(baseSessions * 0.35),
+        engagedSessions: Math.round(baseSessions * 0.72),
+        engagementRatePct: 65 + Math.random() * 15, // 65-80%
+        avgEngagementTimeSec: Math.round(180 + Math.random() * 120), // 3-5 minutes
+        pageviews: Math.round(baseSessions * 2.3),
+        pagesPerSession: 2.1 + Math.random() * 0.8, // 2.1-2.9 pages per session
+        avgSessionDuration: Math.round(180 + Math.random() * 120), // 3-5 minutes
+        bounceRate: 45 + Math.random() * 20, // 45-65%
+        engagementRate: 65 + Math.random() * 15 // 65-80%
+      });
+    }
   }
   
   return timeseries;
@@ -236,11 +370,14 @@ export async function GET(req: NextRequest) {
     return Math.round(((current - previous) / previous) * 100 * 100) / 100; // Round to 2 decimals
   };
 
+  // Extract parameters outside try-catch so they're available in catch block
+  const url = new URL(req.url);
+  const start = url.searchParams.get('start');
+  const end = url.searchParams.get('end');
+  const compare = url.searchParams.get('compare') || 'yoy';
+  const grain = (url.searchParams.get('grain') as 'day' | 'week' | 'month') || 'day';
+
   try {
-    const url = new URL(req.url);
-    const start = url.searchParams.get('start');
-    const end = url.searchParams.get('end');
-    const compare = url.searchParams.get('compare') || 'yoy';
 
     // Validate required parameters
     if (!start || !end) {
@@ -260,8 +397,8 @@ export async function GET(req: NextRequest) {
       // Get summary KPIs from GA4
       const summaryData = await client.getSummaryKPIs(start, end);
       
-      // Get timeseries data from GA4
-      const timeseriesData = await client.getTimeseries(start, end);
+      // Get timeseries data from GA4 with granularity support
+      const timeseriesData = await client.getTimeseries(start, end, grain);
       
             // Get channel data
             const channels = await client.getChannelDistribution(start, end);
@@ -470,10 +607,10 @@ export async function GET(req: NextRequest) {
       console.error('GA4 Overview API: Failed to fetch real data, falling back to mock data:', ga4Error);
     }
 
-    console.log('GA4 Overview API: Returning mock data for', start, 'to', end);
+    console.log('GA4 Overview API: Returning mock data for', start, 'to', end, 'with grain:', grain);
 
-    // Generate mock data
-    const timeseries = generateTimeseries(start, end);
+    // Generate mock data with granularity support
+    const timeseries = generateTimeseries(start, end, grain);
     const channels = generateChannelData(compare);
     const devices = generateDeviceData(compare);
     const cities = generateCitiesData(compare);
@@ -586,13 +723,13 @@ export async function GET(req: NextRequest) {
           pagesPerSession: 1.8
         } : null
       },
-      timeseries: generateTimeseries('2025-10-07', '2025-10-13'),
-      channels: generateChannelData('yoy'),
-      devices: generateDeviceData('yoy'),
-      cities: generateCitiesData('yoy'),
+      timeseries: generateTimeseries('2025-10-07', '2025-10-13', grain),
+      channels: generateChannelData(compare),
+      devices: generateDeviceData(compare),
+      cities: generateCitiesData(compare),
       weekdayHour: generateWeekdayHourData(),
-      topPages: generateTopPagesData('yoy'),
-      referrers: generateTopPagesData('yoy').map(page => ({
+      topPages: generateTopPagesData(compare),
+      referrers: generateTopPagesData(compare).map(page => ({
         key: page.key || 'Unknown',
         sessions: page.sessions || 0,
         avgEngagementTimeSec: page.avgSessionDuration || 0,

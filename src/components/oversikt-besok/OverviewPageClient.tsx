@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { RefreshCw, AlertCircle } from 'lucide-react';
 import { useFilters } from '@/components/GlobalFilters';
-import type { OverviewPayload } from '@/app/api/ga4/overview/route';
+import type { OverviewPayload, TimePoint } from '@/app/api/ga4/overview/route';
 
 type Props = {
   initialData?: OverviewPayload | null;
@@ -46,6 +46,11 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
     pageviews: false,
     pagesPerSession: false,
   });
+  
+  // Use LOCAL state for granularity (client-side only, no page reload)
+  // This ensures granularity changes update the chart immediately without navigation
+  // We keep it separate from global filter state to avoid triggering URL updates
+  const [granularity, setGranularity] = useState<'day' | 'week' | 'month'>('day');
 
   // Fetch data from API
   const fetchData = async (url: string) => {
@@ -54,7 +59,7 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
       setError(null);
       
       // Ensure we have a full URL for client-side fetching
-      const fullUrl = url.startsWith('http') ? url : `${window.location.origin}${url}`;
+      const fullUrl = url.startsWith('http') ? url : `${typeof window !== 'undefined' ? window.location.origin : ''}${url}`;
       const response = await fetch(fullUrl);
       
       if (!response.ok) {
@@ -89,6 +94,7 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
         start: filterState.range.start,
         end: filterState.range.end,
         compare: filterState.range.comparisonMode || 'yoy',
+        grain: granularity, // Use local granularity state (client-side only)
       });
       
       // Map global filter state to GA4 API parameters
@@ -114,7 +120,7 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
     
     const fetchWithAbort = async () => {
       try {
-        const fullUrl = `${window.location.origin}${buildApiUrl()}`;
+        const fullUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}${buildApiUrl()}`;
         const response = await fetch(fullUrl, { signal: controller.signal });
         
         if (!response.ok) {
@@ -148,7 +154,7 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
     return () => {
       controller.abort();
     };
-  }, [filterState.range.start, filterState.range.end, filterState.range.comparisonMode, filterState.channel, filterState.device, filterState.audience]);
+  }, [filterState.range.start, filterState.range.end, filterState.range.comparisonMode, filterState.channel, filterState.device, granularity]);
 
   // Initial data fetch (only if we don't have initial data)
   useEffect(() => {
@@ -210,8 +216,8 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
     );
   }
 
-  // Loading state
-  if (loading || !data) {
+  // Loading state (only show for initial load, not for granularity changes)
+  if ((loading && !data) || !data) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -348,7 +354,12 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
           activeSeries={activeSeries}
           onToggleSeries={(key: keyof typeof activeSeries, value: boolean) => setActiveSeries((prev) => ({ ...prev, [key]: value }))}
         />
-        <Trends data={data.timeseries} activeSeries={activeSeries} />
+        <Trends 
+          data={data.timeseries} 
+          activeSeries={activeSeries} 
+          granularity={granularity}
+          onGranularityChange={setGranularity}
+        />
         
         {/* User Type Distribution */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

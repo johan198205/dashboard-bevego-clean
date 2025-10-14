@@ -18,22 +18,46 @@ type Props = {
     pageviews: boolean;
     pagesPerSession: boolean;
   };
+  granularity?: 'day' | 'week' | 'month';
+  onGranularityChange?: (granularity: 'day' | 'week' | 'month') => void;
 };
 
 type ChartType = 'line' | 'bar';
 
-export function Trends({ data, activeSeries }: Props) {
+export function Trends({ data, activeSeries, granularity = 'day', onGranularityChange }: Props) {
   // Chart type control: Linje | Stapeldiagram
   const [chartType, setChartType] = useState<ChartType>('line');
+
+  // Helper function to get week number (reused from leads chart)
+  const getWeekNumber = (date: Date): number => {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  };
+
+  // Format date labels based on granularity (reused from leads chart pattern)
+  // See: src/app/primara-kpi/_components/LeadsBlock.tsx for original implementation
+  const formatDateLabel = (dateStr: string, granularity: 'day' | 'week' | 'month'): string => {
+    const date = new Date(dateStr);
+    
+    switch (granularity) {
+      case 'day':
+        return date.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
+      case 'week':
+        const weekNumber = getWeekNumber(date);
+        return `v. ${weekNumber}`;
+      case 'month':
+        return date.toLocaleDateString('sv-SE', { month: 'short', year: 'numeric' });
+      default:
+        return date.toLocaleDateString('sv-SE');
+    }
+  };
 
   // Transform data for the chart
   const chartData = data.map(point => ({
     ...point,
-    // Format date for display
-    dateFormatted: new Date(point.date).toLocaleDateString('sv-SE', {
-      month: 'short',
-      day: 'numeric'
-    })
+    // Format date for display based on granularity
+    dateFormatted: formatDateLabel(point.date, granularity)
   }));
 
   // Riksbyggen red palette for all series - varied shades for distinction
@@ -148,21 +172,76 @@ export function Trends({ data, activeSeries }: Props) {
       title="Tidsutveckling"
       description="Utveckling över tid för valda metrik"
       headerRight={
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs">
-            <button 
-              className={`${chartType === "line" ? "font-semibold" : "opacity-70"}`} 
-              onClick={() => setChartType("line")}
-            >
-              Linje
-            </button>
-            <span className="opacity-30">|</span>
-            <button 
-              className={`${chartType === "bar" ? "font-semibold" : "opacity-70"}`} 
-              onClick={() => setChartType("bar")}
-            >
-              Stapel
-            </button>
+        <div className="flex items-center gap-3">
+          {/* Granularity Controls (reused from leads chart - see LeadsBlock.tsx) */}
+          {onGranularityChange && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500 dark:text-gray-400">Granularitet:</label>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => onGranularityChange('day')}
+                  className={`px-2 py-1 text-xs rounded ${
+                    granularity === 'day'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                  aria-label="Visa daglig granularitet"
+                >
+                  Dag
+                </button>
+                <button
+                  onClick={() => onGranularityChange('week')}
+                  className={`px-2 py-1 text-xs rounded ${
+                    granularity === 'week'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                  aria-label="Visa veckovis granularitet"
+                >
+                  Vecka
+                </button>
+                <button
+                  onClick={() => onGranularityChange('month')}
+                  className={`px-2 py-1 text-xs rounded ${
+                    granularity === 'month'
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                      : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                  aria-label="Visa månadsvis granularitet"
+                >
+                  Månad
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Chart Type Controls */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 dark:text-gray-400">Typ:</label>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setChartType('line')}
+                className={`px-2 py-1 text-xs rounded ${
+                  chartType === 'line'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+                aria-label="Visa som linjediagram"
+              >
+                Linje
+              </button>
+              <button
+                onClick={() => setChartType('bar')}
+                className={`px-2 py-1 text-xs rounded ${
+                  chartType === 'bar'
+                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600'
+                }`}
+                aria-label="Visa som stapeldiagram"
+              >
+                Stapel
+              </button>
+            </div>
           </div>
         </div>
       }
@@ -480,7 +559,10 @@ export function Trends({ data, activeSeries }: Props) {
           </ResponsiveContainer>
         </div>
 
-        {/* legend removed as per request */}
+        {/* Footer with data points count (reused from leads chart pattern) */}
+        <div className="mt-2 text-xs text-gray-500">
+          {chartData.length} datapunkter ({granularity === 'day' ? 'daglig' : granularity === 'week' ? 'veckovis' : 'månadsvis'} granularitet)
+        </div>
     </AnalyticsBlock>
   );
 }
