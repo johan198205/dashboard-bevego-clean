@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import { AnalyticsBlock } from '@/components/ui/analytics-block';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { LineChart, BarChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { formatNumber, formatPercent, formatDateTooltip } from '@/utils/format';
 import type { TimePoint } from '@/app/api/ga4/overview/route';
 
@@ -19,7 +20,12 @@ type Props = {
   };
 };
 
+type ChartType = 'line' | 'bar';
+
 export function Trends({ data, activeSeries }: Props) {
+  // Chart type control: Linje | Stapeldiagram
+  const [chartType, setChartType] = useState<ChartType>('line');
+
   // Transform data for the chart
   const chartData = data.map(point => ({
     ...point,
@@ -141,10 +147,30 @@ export function Trends({ data, activeSeries }: Props) {
     <AnalyticsBlock
       title="Tidsutveckling"
       description="Utveckling över tid för valda metrik"
+      headerRight={
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 rounded border px-1.5 py-0.5 text-xs">
+            <button 
+              className={`${chartType === "line" ? "font-semibold" : "opacity-70"}`} 
+              onClick={() => setChartType("line")}
+            >
+              Linje
+            </button>
+            <span className="opacity-30">|</span>
+            <button 
+              className={`${chartType === "bar" ? "font-semibold" : "opacity-70"}`} 
+              onClick={() => setChartType("bar")}
+            >
+              Stapel
+            </button>
+          </div>
+        </div>
+      }
     >
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            {chartType === 'line' ? (
+              <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis 
                 dataKey="dateFormatted" 
@@ -309,7 +335,148 @@ export function Trends({ data, activeSeries }: Props) {
                   name="Pages/session"
                 />
               )}
-            </LineChart>
+              </LineChart>
+            ) : (
+              <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis 
+                dataKey="dateFormatted" 
+                stroke="#6b7280"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis 
+                yAxisId="counts"
+                orientation="left"
+                stroke="#6b7280"
+                fontSize={12}
+                tickLine={false}
+                axisLine={false}
+                domain={[0, maxCounts]}
+                tickFormatter={(value) => {
+                  if (activeSeries?.pagesPerSession && !activeSeries?.sessions && !activeSeries?.engagedSessions) {
+                    return value.toFixed(1).replace('.', ',');
+                  }
+                  return formatNumber(value);
+                }}
+              />
+              {activeSeries?.engagementRatePct !== false && (
+                <YAxis 
+                  yAxisId="percent"
+                  orientation="right"
+                  stroke="#6b7280"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={[0, maxPct]}
+                  tickFormatter={(value) => `${value}%`}
+                />
+              )}
+              {activeSeries?.avgEngagementTimeSec && (
+                <YAxis 
+                  yAxisId="time"
+                  orientation="right"
+                  stroke="#6b7280"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  domain={[0, Math.max(maxTime, 1)]}
+                  tickFormatter={(value) => formatNumber(value)}
+                />
+              )}
+              <Tooltip content={<CustomTooltip />} />
+              <Legend />
+              
+              {/* Sessions bar */}
+              {activeSeries?.sessions !== false && (
+                <Bar
+                  yAxisId="counts"
+                  dataKey="sessions"
+                  fill={COLORS.sessions}
+                  name="Sessions"
+                  radius={[2, 2, 0, 0]}
+                />
+              )}
+              
+              {/* Engaged sessions bar */}
+              {activeSeries?.engagedSessions !== false && (
+                <Bar
+                  yAxisId="counts"
+                  dataKey="engagedSessions"
+                  fill={COLORS.engagedSessions}
+                  name="Engagerade sessioner"
+                  radius={[2, 2, 0, 0]}
+                />
+              )}
+              
+              {/* Engagement rate bar (secondary axis) */}
+              {activeSeries?.engagementRatePct !== false && (
+                <Bar
+                  yAxisId="percent"
+                  dataKey="engagementRatePct"
+                  fill={COLORS.engagementRatePct}
+                  name="Engagemangsgrad (%)"
+                  radius={[2, 2, 0, 0]}
+                />
+              )}
+
+              {/* Total users */}
+              {activeSeries?.totalUsers && (
+                <Bar
+                  yAxisId="counts"
+                  dataKey="totalUsers"
+                  fill={COLORS.totalUsers}
+                  name="Total users"
+                  radius={[2, 2, 0, 0]}
+                />
+              )}
+
+              {/* Returning users */}
+              {activeSeries?.returningUsers && (
+                <Bar
+                  yAxisId="counts"
+                  dataKey="returningUsers"
+                  fill={COLORS.returningUsers}
+                  name="Returning users"
+                  radius={[2, 2, 0, 0]}
+                />
+              )}
+
+              {/* Pageviews */}
+              {activeSeries?.pageviews && (
+                <Bar
+                  yAxisId="counts"
+                  dataKey="pageviews"
+                  fill={COLORS.pageviews}
+                  name="Sidvisningar"
+                  radius={[2, 2, 0, 0]}
+                />
+              )}
+
+              {/* Avg engagement time (seconds) */}
+              {activeSeries?.avgEngagementTimeSec && (
+                <Bar
+                  yAxisId="time"
+                  dataKey="avgEngagementTimeSec"
+                  fill={COLORS.avgEngagementTimeSec}
+                  name="Genomsnittlig engagemangstid (sek)"
+                  radius={[2, 2, 0, 0]}
+                />
+              )}
+
+              {/* Pages per session */}
+              {activeSeries?.pagesPerSession && (
+                <Bar
+                  yAxisId="counts"
+                  dataKey="pagesPerSession"
+                  fill={COLORS.pagesPerSession}
+                  name="Pages/session"
+                  radius={[2, 2, 0, 0]}
+                />
+              )}
+              </BarChart>
+            )}
           </ResponsiveContainer>
         </div>
 

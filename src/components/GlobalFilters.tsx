@@ -78,7 +78,8 @@ export default function GlobalFilters() {
   const currentSearch = useSearchParams();
   const { state, setState } = useFilters();
   // Preset reflects the actual selected date range; derive from state
-  const [preset, setPreset] = useState<string>("");
+  // Initialize with "last28" since default state is "Senaste 28 dagarna"
+  const [preset, setPreset] = useState<string>("last28");
   const toIso = (d: Date) => d.toISOString().slice(0, 10);
   const addDays = (d: Date, days: number) => {
     const nd = new Date(d);

@@ -139,26 +139,59 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const { BetaAnalyticsDataClient } = (eval('require'))("@google-analytics/data");
       const client = new BetaAnalyticsDataClient();
+      
+      // Determine dimension based on granularity
+      let dimensionName = "date";
+      if (grain === "week") dimensionName = "yearWeek";
+      else if (grain === "month") dimensionName = "yearMonth";
+      
       const extraDims: any[] = [];
       if (filters?.device?.length) extraDims.push({ name: "deviceCategory" });
       if (filters?.channel?.length) extraDims.push({ name: "sessionDefaultChannelGroup" });
       const [resp] = await client.runReport({
         property: `properties/${propertyId}`,
         dateRanges: [{ startDate: rangeInput.start, endDate: rangeInput.end }],
-        dimensions: [{ name: "date" }, ...extraDims],
+        dimensions: [{ name: dimensionName }, ...extraDims],
         metrics: [{ name: "totalUsers" }],
         dimensionFilter: buildGa4FilterExpression("www.bevego.se", filters),
-        orderBys: [{ dimension: { dimensionName: "date" } }],
+        orderBys: [{ dimension: { dimensionName } }],
       });
       if (debugGa4) {
         // eslint-disable-next-line no-console
         console.debug('[GA4] MAU rows', resp.rows?.length || 0);
       }
       const rows = resp.rows || [];
-      const series = rows.map((r: any) => ({
-        date: `${r.dimensionValues?.[0]?.value?.slice(0,4)}-${r.dimensionValues?.[0]?.value?.slice(4,6)}-${r.dimensionValues?.[0]?.value?.slice(6,8)}`,
-        value: Number(r.metricValues?.[0]?.value || 0),
-      }));
+      const series = rows.map((r: any) => {
+        const dateValue = r.dimensionValues?.[0]?.value;
+        let formattedDate: string;
+        
+        switch (grain) {
+          case 'week':
+            // yearWeek format: YYYYWW (e.g., 202401)
+            const year = parseInt(dateValue.slice(0, 4));
+            const week = parseInt(dateValue.slice(4, 6));
+            const jan4 = new Date(year, 0, 4);
+            const jan4Day = jan4.getDay() || 7;
+            const mondayOfWeek1 = new Date(jan4);
+            mondayOfWeek1.setDate(jan4.getDate() - jan4Day + 1);
+            const targetMonday = new Date(mondayOfWeek1);
+            targetMonday.setDate(mondayOfWeek1.getDate() + (week - 1) * 7);
+            formattedDate = targetMonday.toISOString().slice(0, 10);
+            break;
+          case 'month':
+            // yearMonth format: YYYYMM (e.g., 202401)
+            formattedDate = `${dateValue.slice(0,4)}-${dateValue.slice(4,6)}-01`;
+            break;
+          default:
+            // date format: YYYYMMDD
+            formattedDate = `${dateValue.slice(0,4)}-${dateValue.slice(4,6)}-${dateValue.slice(6,8)}`;
+        }
+        
+        return {
+          date: formattedDate,
+          value: Number(r.metricValues?.[0]?.value || 0),
+        };
+      });
       return series as { date: string; value: number }[];
     }
 

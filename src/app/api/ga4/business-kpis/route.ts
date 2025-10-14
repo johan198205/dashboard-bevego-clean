@@ -123,19 +123,33 @@ export async function GET(req: NextRequest) {
     // Get current period data
     const [currentSummary, currentTimeseries, channels] = await Promise.all([
       client.getSummaryKPIs(start, end, filters),
-      client.getTimeseries(start, end, filters),
+      client.getTimeseries(start, end, 'day', filters),
       client.getChannelDistribution(start, end, filters)
     ]);
 
     // Map GA4 data to business KPIs
-    // Note: This is a simplified mapping - in reality you'd need custom events/dimensions for business metrics
+    // Event mapping per product requirement (exact match on event_name):
+    // - customerApplications  -> event_name == "ansok_klick"
+    // - ecommerceApplications -> event_name == "ehandel_ansok"
+    // - formLeads             -> event_name == "form_submit"
+    // - quoteRequests         -> no GA4 event available → always 0 (card shows "No data")
+
+    const [customerApplicationsCount, ecommerceApplicationsCount, formLeadsCount,
+      customerApplicationsSeries, ecommerceApplicationsSeries, formLeadsSeries] = await Promise.all([
+      client.getEventCountByName(start, end, 'ansok_klick', filters),
+      client.getEventCountByName(start, end, 'ehandel_ansok', filters),
+      client.getEventCountByName(start, end, 'form_submit', filters),
+      client.getEventTimeseriesByName(start, end, 'ansok_klick', filters),
+      client.getEventTimeseriesByName(start, end, 'ehandel_ansok', filters),
+      client.getEventTimeseriesByName(start, end, 'form_submit', filters),
+    ]);
+
     const businessData: BusinessKpiData = {
       leads: {
-        // Map GA4 metrics to business concepts
-        quoteRequests: Math.round(currentSummary.sessions * 0.15), // 15% of sessions become quote requests
-        customerApplications: Math.round(currentSummary.sessions * 0.08), // 8% become customer applications
-        ecommerceApplications: Math.round(currentSummary.sessions * 0.12), // 12% become ecommerce applications
-        formLeads: Math.round(currentSummary.engagedSessions * 0.25), // 25% of engaged sessions become form leads
+        quoteRequests: 0,
+        customerApplications: customerApplicationsCount,
+        ecommerceApplications: ecommerceApplicationsCount,
+        formLeads: formLeadsCount,
       },
       sales: {
         completedPurchases: Math.round(currentSummary.sessions * 0.03), // 3% conversion rate
@@ -149,11 +163,17 @@ export async function GET(req: NextRequest) {
         cpaCustomers: 500, // Cost per acquisition for customers
         roi: 320, // Return on investment percentage
       },
+      // Keep existing timeseries/sales derivation logic per NON-GOALS
       timeseries: currentTimeseries.map((point: any) => ({
         date: point.date,
+        // Keep generic derived series for sales/conversion per NON-GOALS, but not used by leads chart anymore
         leads: Math.round(point.sessions * 0.15),
         sales: Math.round(point.sessions * 0.03),
         conversion: point.sessions > 0 ? (point.sessions * 0.03 / point.sessions) * 100 : 0,
+        // Attach real GA4 lead event timeseries per event
+        ansok_klick: customerApplicationsSeries.find((d: any) => d.date === point.date)?.value || 0,
+        ehandel_ansok: ecommerceApplicationsSeries.find((d: any) => d.date === point.date)?.value || 0,
+        form_submit: formLeadsSeries.find((d: any) => d.date === point.date)?.value || 0,
       })),
       channelBreakdown: channels.map((channel: any) => ({
         channel: channel.key,
@@ -175,16 +195,26 @@ export async function GET(req: NextRequest) {
       try {
         const [prevSummary, prevTimeseries, prevChannels] = await Promise.all([
           client.getSummaryKPIs(prevRange.start, prevRange.end, filters),
-          client.getTimeseries(prevRange.start, prevRange.end, filters),
+          client.getTimeseries(prevRange.start, prevRange.end, 'day', filters),
           client.getChannelDistribution(prevRange.start, prevRange.end, filters)
+        ]);
+
+        const [prevCustomerApps, prevEcomApps, prevFormLeads,
+          prevCustomerAppsSeries, prevEcomAppsSeries, prevFormLeadsSeries] = await Promise.all([
+          client.getEventCountByName(prevRange.start, prevRange.end, 'ansok_klick', filters),
+          client.getEventCountByName(prevRange.start, prevRange.end, 'ehandel_ansok', filters),
+          client.getEventCountByName(prevRange.start, prevRange.end, 'form_submit', filters),
+          client.getEventTimeseriesByName(prevRange.start, prevRange.end, 'ansok_klick', filters),
+          client.getEventTimeseriesByName(prevRange.start, prevRange.end, 'ehandel_ansok', filters),
+          client.getEventTimeseriesByName(prevRange.start, prevRange.end, 'form_submit', filters),
         ]);
 
         comparisonData = {
           leads: {
-            quoteRequests: Math.round(prevSummary.sessions * 0.15),
-            customerApplications: Math.round(prevSummary.sessions * 0.08),
-            ecommerceApplications: Math.round(prevSummary.sessions * 0.12),
-            formLeads: Math.round(prevSummary.engagedSessions * 0.25),
+            quoteRequests: 0,
+            customerApplications: prevCustomerApps,
+            ecommerceApplications: prevEcomApps,
+            formLeads: prevFormLeads,
           },
           sales: {
             completedPurchases: Math.round(prevSummary.sessions * 0.03),
@@ -203,6 +233,9 @@ export async function GET(req: NextRequest) {
             leads: Math.round(point.sessions * 0.15),
             sales: Math.round(point.sessions * 0.03),
             conversion: point.sessions > 0 ? (point.sessions * 0.03 / point.sessions) * 100 : 0,
+            ansok_klick: prevCustomerAppsSeries.find((d: any) => d.date === point.date)?.value || 0,
+            ehandel_ansok: prevEcomAppsSeries.find((d: any) => d.date === point.date)?.value || 0,
+            form_submit: prevFormLeadsSeries.find((d: any) => d.date === point.date)?.value || 0,
           })),
           channelBreakdown: prevChannels.map((channel: any) => ({
             channel: channel.key,

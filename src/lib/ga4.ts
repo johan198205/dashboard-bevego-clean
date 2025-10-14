@@ -289,12 +289,25 @@ export class GA4Client {
     return result;
   }
 
-  // Get timeseries data
-  async getTimeseries(startDate: string, endDate: string, filters?: any) {
+  // Get timeseries data with granularity support
+  async getTimeseries(startDate: string, endDate: string, grain: 'day' | 'week' | 'month' = 'day', filters?: any) {
+    // Determine dimension based on granularity
+    let dimensionName: string;
+    switch (grain) {
+      case 'week':
+        dimensionName = 'yearWeek';
+        break;
+      case 'month':
+        dimensionName = 'yearMonth';
+        break;
+      default:
+        dimensionName = 'date';
+    }
+
     const request = {
       property: this.propertyId,
       dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: 'date' }],
+      dimensions: [{ name: dimensionName }],
       metrics: [
         { name: 'sessions' },
         { name: 'engagedSessions' },
@@ -305,14 +318,14 @@ export class GA4Client {
         { name: 'averageSessionDuration' }
       ],
       dimensionFilter: this.buildDimensionFilter(filters),
-      orderBys: [{ dimension: { dimensionName: 'date' } }],
+      orderBys: [{ dimension: { dimensionName } }],
     };
 
     const response = await this.runReport(request);
     const rows = response.rows || [];
 
     return rows.map((row: any) => {
-      const date = row.dimensionValues?.[0]?.value;
+      const dateValue = row.dimensionValues?.[0]?.value;
       const sessions = Number(row.metricValues?.[0]?.value || 0);
       const engagedSessions = Number(row.metricValues?.[1]?.value || 0);
       const engagementRate = Number(row.metricValues?.[2]?.value || 0);
@@ -323,8 +336,24 @@ export class GA4Client {
 
       const pagesPerSession = sessions > 0 ? pageviews / sessions : 0;
 
+      // Format date based on granularity
+      let formattedDate: string;
+      switch (grain) {
+        case 'week':
+          // yearWeek format: YYYYWW (e.g., 202401)
+          formattedDate = this.formatWeekDate(dateValue);
+          break;
+        case 'month':
+          // yearMonth format: YYYYMM (e.g., 202401)
+          formattedDate = `${dateValue.slice(0,4)}-${dateValue.slice(4,6)}-01`;
+          break;
+        default:
+          // date format: YYYYMMDD
+          formattedDate = `${dateValue.slice(0,4)}-${dateValue.slice(4,6)}-${dateValue.slice(6,8)}`;
+      }
+
       return {
-        date: `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`,
+        date: formattedDate,
         sessions,
         engagedSessions,
         engagementRatePct: engagementRate <= 1 ? engagementRate * 100 : engagementRate,
@@ -609,6 +638,116 @@ export class GA4Client {
     });
 
     return scaledCityData;
+  }
+
+  // Count events by exact event name (event_name)
+  // Used by business KPIs score cards to map specific lead events
+  async getEventCountByName(startDate: string, endDate: string, eventName: string, filters?: any) {
+    // Build explicit AND group to avoid API ignoring nested groups
+    const expressions: any[] = [];
+
+    // Required host filter (align with buildDimensionFilter)
+    expressions.push({
+      filter: {
+        fieldName: 'hostName',
+        stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' }
+      }
+    });
+
+    // Optional channel/device filters
+    if (filters?.channel && filters.channel !== 'Alla') {
+      expressions.push({
+        filter: {
+          fieldName: 'sessionDefaultChannelGroup',
+          stringFilter: { matchType: 'EXACT', value: filters.channel }
+        }
+      });
+    }
+    if (filters?.device && filters.device !== 'Alla') {
+      expressions.push({
+        filter: {
+          fieldName: 'deviceCategory',
+          stringFilter: { matchType: 'EXACT', value: filters.device }
+        }
+      });
+    }
+
+    // Exact event name
+    expressions.push({
+      filter: {
+        fieldName: 'eventName',
+        stringFilter: { matchType: 'EXACT', value: eventName }
+      }
+    });
+
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      metrics: [{ name: 'eventCount' }],
+      dimensionFilter: { andGroup: { expressions } },
+    } as any;
+
+    const response = await this.runReport(request);
+    const row = response.rows?.[0];
+    const count = Number(row?.metricValues?.[0]?.value || 0);
+    return count;
+  }
+
+  // Timeseries of events by exact name aggregated per day
+  async getEventTimeseriesByName(startDate: string, endDate: string, eventName: string, filters?: any) {
+    const expressions: any[] = [];
+    expressions.push({
+      filter: { fieldName: 'hostName', stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' } }
+    });
+    if (filters?.channel && filters.channel !== 'Alla') {
+      expressions.push({
+        filter: { fieldName: 'sessionDefaultChannelGroup', stringFilter: { matchType: 'EXACT', value: filters.channel } }
+      });
+    }
+    if (filters?.device && filters.device !== 'Alla') {
+      expressions.push({
+        filter: { fieldName: 'deviceCategory', stringFilter: { matchType: 'EXACT', value: filters.device } }
+      });
+    }
+    expressions.push({
+      filter: { fieldName: 'eventName', stringFilter: { matchType: 'EXACT', value: eventName } }
+    });
+
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: 'date' }],
+      metrics: [{ name: 'eventCount' }],
+      dimensionFilter: { andGroup: { expressions } },
+      orderBys: [{ dimension: { dimensionName: 'date' } }],
+    } as any;
+
+    const response = await this.runReport(request);
+    const rows = response.rows || [];
+    return rows.map((row: any) => {
+      const date = row.dimensionValues?.[0]?.value;
+      const count = Number(row.metricValues?.[0]?.value || 0);
+      return { date: `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`, value: count };
+    });
+  }
+
+  // Helper method to format week date from GA4 yearWeek format
+  private formatWeekDate(yearWeek: string): string {
+    // yearWeek format: YYYYWW (e.g., 202401)
+    const year = parseInt(yearWeek.slice(0, 4));
+    const week = parseInt(yearWeek.slice(4, 6));
+    
+    // Calculate the Monday of the given week
+    const jan4 = new Date(year, 0, 4); // January 4th is always in week 1
+    const jan4Day = jan4.getDay() || 7; // Convert Sunday (0) to 7
+    const mondayOfWeek1 = new Date(jan4);
+    mondayOfWeek1.setDate(jan4.getDate() - jan4Day + 1);
+    
+    // Add weeks to get to the target week
+    const targetMonday = new Date(mondayOfWeek1);
+    targetMonday.setDate(mondayOfWeek1.getDate() + (week - 1) * 7);
+    
+    return targetMonday.toISOString().slice(0, 10);
   }
 
   // Build dimension filter from query parameters

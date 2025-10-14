@@ -26,6 +26,9 @@ export type BusinessKpiData = {
     leads: number;
     sales: number;
     conversion: number;
+    ansok_klick?: number; // customer applications per day
+    ehandel_ansok?: number; // ecommerce applications per day
+    form_submit?: number; // form leads per day
   }[];
   channelBreakdown: {
     channel: string;
