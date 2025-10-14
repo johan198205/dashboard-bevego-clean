@@ -165,6 +165,16 @@ export class GA4Client {
     this.client = new BetaAnalyticsDataClient(clientOptions);
   }
 
+  // Getter for propertyId to allow external access
+  getPropertyId(): string {
+    return this.propertyId;
+  }
+
+  // Public method to format week date
+  formatWeekDatePublic(dateValue: string): string {
+    return this.formatWeekDate(dateValue);
+  }
+
   // Execute GA4 report with retry logic and error handling
   async runReport(request: any, retries = 3): Promise<any> {
     return this.rateLimiter.execute(async () => {
@@ -954,6 +964,136 @@ export class GA4Client {
     targetMonday.setDate(mondayOfWeek1.getDate() + (week - 1) * 7);
     
     return targetMonday.toISOString().slice(0, 10);
+  }
+
+  // Get event count by event name
+  async getEventCountByName(startDate: string, endDate: string, eventName: string, filters?: any) {
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      metrics: [{ name: 'eventCount' }],
+      dimensionFilter: {
+        andGroup: {
+          expressions: [
+            {
+              filter: {
+                fieldName: 'eventName',
+                stringFilter: { matchType: 'EXACT', value: eventName }
+              }
+            },
+            ...(this.buildDimensionFilter(filters) ? [this.buildDimensionFilter(filters)] : [])
+          ]
+        }
+      }
+    };
+
+    const response = await this.runReport(request);
+    const rows = response.rows || [];
+    
+    if (rows.length === 0) return 0;
+    
+    return Number(rows[0].metricValues?.[0]?.value || 0);
+  }
+
+  // Get event timeseries by event name
+  async getEventTimeseriesByName(startDate: string, endDate: string, eventName: string, filters?: any) {
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: 'date' }],
+      metrics: [{ name: 'eventCount' }],
+      dimensionFilter: {
+        andGroup: {
+          expressions: [
+            {
+              filter: {
+                fieldName: 'eventName',
+                stringFilter: { matchType: 'EXACT', value: eventName }
+              }
+            },
+            ...(this.buildDimensionFilter(filters) ? [this.buildDimensionFilter(filters)] : [])
+          ]
+        }
+      },
+      orderBys: [{ dimension: { dimensionName: 'date' } }]
+    };
+
+    const response = await this.runReport(request);
+    const rows = response.rows || [];
+
+    return rows.map((row: any) => {
+      const dateValue = row.dimensionValues?.[0]?.value;
+      const value = Number(row.metricValues?.[0]?.value || 0);
+      
+      return {
+        date: `${dateValue.slice(0,4)}-${dateValue.slice(4,6)}-${dateValue.slice(6,8)}`,
+        value
+      };
+    });
+  }
+
+  // Get purchase count
+  async getPurchaseCount(startDate: string, endDate: string, filters?: any) {
+    return this.getEventCountByName(startDate, endDate, 'purchase', filters);
+  }
+
+  // Get purchase revenue
+  async getPurchaseRevenue(startDate: string, endDate: string, filters?: any) {
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      metrics: [{ name: 'purchaseRevenue' }],
+      dimensionFilter: {
+        andGroup: {
+          expressions: [
+            {
+              filter: {
+                fieldName: 'eventName',
+                stringFilter: { matchType: 'EXACT', value: 'purchase' }
+              }
+            },
+            ...(this.buildDimensionFilter(filters) ? [this.buildDimensionFilter(filters)] : [])
+          ]
+        }
+      }
+    };
+
+    const response = await this.runReport(request);
+    const rows = response.rows || [];
+    
+    if (rows.length === 0) return 0;
+    
+    return Number(rows[0].metricValues?.[0]?.value || 0);
+  }
+
+  // Get returning customers count
+  async getReturningCustomersCount(startDate: string, endDate: string, filters?: any) {
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: 'newVsReturning' }],
+      metrics: [{ name: 'activeUsers' }],
+      dimensionFilter: {
+        andGroup: {
+          expressions: [
+            {
+              filter: {
+                fieldName: 'newVsReturning',
+                stringFilter: { matchType: 'EXACT', value: 'returning' }
+              }
+            },
+            ...(this.buildDimensionFilter(filters) ? [this.buildDimensionFilter(filters)] : [])
+          ]
+        }
+      }
+    };
+
+    const response = await this.runReport(request);
+    const rows = response.rows || [];
+    
+    if (rows.length === 0) return 0;
+    
+    return Number(rows[0].metricValues?.[0]?.value || 0);
   }
 
   // Build dimension filter from query parameters

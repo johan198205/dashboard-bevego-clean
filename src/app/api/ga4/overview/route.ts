@@ -410,9 +410,9 @@ export async function GET(req: NextRequest) {
             const cities = await client.getTopCities(start, end);
 
             // Calculate comparison data for channels, devices, and cities
-            let channelComparison = channels.map(channel => ({ ...channel, comparisonPct: 0 }));
-            let deviceComparison = devices.map(device => ({ ...device, comparisonPct: 0 }));
-            let cityComparison = cities.map(city => ({ ...city, comparisonPct: 0 }));
+            let channelComparison = channels.map((channel: any) => ({ ...channel, comparisonPct: 0 }));
+            let deviceComparison = devices.map((device: any) => ({ ...device, comparisonPct: 0 }));
+            let cityComparison = cities.map((city: any) => ({ ...city, comparisonPct: 0 }));
             
             // Only calculate comparisons if comparison mode is specified
             if (compare === 'yoy' || compare === 'prev') {
@@ -429,8 +429,8 @@ export async function GET(req: NextRequest) {
                     lastYearEnd.toISOString().slice(0, 10)
                   );
                   
-                  channelComparison = channels.map(channel => {
-                    const lastYearChannel = lastYearChannels.find(c => c.key === channel.key);
+                  channelComparison = channels.map((channel: any) => {
+                    const lastYearChannel = lastYearChannels.find((c: any) => c.key === channel.key);
                     return {
                       ...channel,
                       comparisonPct: lastYearChannel ? calculateComparison(channel.sessions, lastYearChannel.sessions) : 0
@@ -443,8 +443,8 @@ export async function GET(req: NextRequest) {
                     lastYearEnd.toISOString().slice(0, 10)
                   );
                   
-                  deviceComparison = devices.map(device => {
-                    const lastYearDevice = lastYearDevices.find(d => d.key === device.key);
+                  deviceComparison = devices.map((device: any) => {
+                    const lastYearDevice = lastYearDevices.find((d: any) => d.key === device.key);
                     return {
                       ...device,
                       comparisonPct: lastYearDevice ? calculateComparison(device.sessions, lastYearDevice.sessions) : 0
@@ -457,8 +457,8 @@ export async function GET(req: NextRequest) {
                     lastYearEnd.toISOString().slice(0, 10)
                   );
                   
-                  cityComparison = cities.map(city => {
-                    const lastYearCity = lastYearCities.find(c => c.key === city.key);
+                  cityComparison = cities.map((city: any) => {
+                    const lastYearCity = lastYearCities.find((c: any) => c.key === city.key);
                     return {
                       ...city,
                       comparisonPct: lastYearCity ? calculateComparison(city.sessions, lastYearCity.sessions) : 0
@@ -477,8 +477,8 @@ export async function GET(req: NextRequest) {
                     prevEnd.toISOString().slice(0, 10)
                   );
                   
-                  channelComparison = channels.map(channel => {
-                    const prevChannel = prevChannels.find(c => c.key === channel.key);
+                  channelComparison = channels.map((channel: any) => {
+                    const prevChannel = prevChannels.find((c: any) => c.key === channel.key);
                     return {
                       ...channel,
                       comparisonPct: prevChannel ? calculateComparison(channel.sessions, prevChannel.sessions) : 0
@@ -491,8 +491,8 @@ export async function GET(req: NextRequest) {
                     prevEnd.toISOString().slice(0, 10)
                   );
                   
-                  deviceComparison = devices.map(device => {
-                    const prevDevice = prevDevices.find(d => d.key === device.key);
+                  deviceComparison = devices.map((device: any) => {
+                    const prevDevice = prevDevices.find((d: any) => d.key === device.key);
                     return {
                       ...device,
                       comparisonPct: prevDevice ? calculateComparison(device.sessions, prevDevice.sessions) : 0
@@ -505,8 +505,8 @@ export async function GET(req: NextRequest) {
                     prevEnd.toISOString().slice(0, 10)
                   );
                   
-                  cityComparison = cities.map(city => {
-                    const prevCity = prevCities.find(c => c.key === city.key);
+                  cityComparison = cities.map((city: any) => {
+                    const prevCity = prevCities.find((c: any) => c.key === city.key);
                     return {
                       ...city,
                       comparisonPct: prevCity ? calculateComparison(city.sessions, prevCity.sessions) : 0

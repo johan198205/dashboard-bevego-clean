@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useBusinessKpis } from "@/hooks/useBusinessKpis";
 import { formatNumber } from "@/lib/format";
+import { useFilters } from "@/components/GlobalFilters";
 import { ScoreCard } from "@/components/ui/scorecard";
 import { UserIcon, GlobeIcon, EmailIcon, TrendingUpIcon } from "@/assets/icons";
 import { Switch } from "@/components/FormElements/switch";
@@ -85,7 +86,7 @@ const aggregateDataByGranularity = (data: any[], granularity: Granularity) => {
   // For average order value, calculate proper averages
   const result = Array.from(aggregated.values()).sort((a, b) => a.date.localeCompare(b.date));
   result.forEach(item => {
-    if (granularity !== 'day' && item.completedPurchases > 0) {
+    if (item.completedPurchases > 0) {
       item.averageOrderValue = item.totalOrderValue / item.completedPurchases;
     }
   });
@@ -95,6 +96,7 @@ const aggregateDataByGranularity = (data: any[], granularity: Granularity) => {
 
 export function SalesBlock() {
   const { data, loading, error } = useBusinessKpis();
+  const { state } = useFilters();
   const [granularity, setGranularity] = useState<Granularity>('day');
   const [activeSeries, setActiveSeries] = useState({
     completedPurchases: true,
@@ -106,6 +108,40 @@ export function SalesBlock() {
   const [showCompare, setShowCompare] = useState(false);
   // Chart type controls
   const [chartType, setChartType] = useState<ChartType>('line');
+  
+  // State for GA4 timeseries data
+  const [timeseriesData, setTimeseriesData] = useState({
+    purchaseTimeseries: { timeseries: [] },
+    purchaseRevenueTimeseries: { timeseries: [] },
+    returningCustomersTimeseries: { timeseries: [] }
+  });
+  const [timeseriesLoading, setTimeseriesLoading] = useState(false);
+
+  // Fetch GA4 timeseries data when granularity or date range changes
+  useEffect(() => {
+    const fetchTimeseriesData = async () => {
+      setTimeseriesLoading(true);
+      try {
+        const [purchaseTimeseries, purchaseRevenueTimeseries, returningCustomersTimeseries] = await Promise.all([
+          fetch(`/api/ga4/events?event=purchase&metric=eventCount&start=${state.range.start}&end=${state.range.end}&grain=${granularity}`).then(r => r.json()).catch(() => ({ timeseries: [] })),
+          fetch(`/api/ga4/events?event=purchase&metric=purchaseRevenue&start=${state.range.start}&end=${state.range.end}&grain=${granularity}`).then(r => r.json()).catch(() => ({ timeseries: [] })),
+          fetch(`/api/ga4/events?event=purchase&metric=activeUsers&dimension=newVsReturning&filter=returning&start=${state.range.start}&end=${state.range.end}&grain=${granularity}`).then(r => r.json()).catch(() => ({ timeseries: [] }))
+        ]);
+        
+        setTimeseriesData({
+          purchaseTimeseries,
+          purchaseRevenueTimeseries,
+          returningCustomersTimeseries
+        });
+      } catch (error) {
+        console.error('Failed to fetch timeseries data:', error);
+      } finally {
+        setTimeseriesLoading(false);
+      }
+    };
+
+    fetchTimeseriesData();
+  }, [state.range.start, state.range.end, granularity]);
 
   if (loading) {
     return (
@@ -170,12 +206,11 @@ export function SalesBlock() {
   const averageOrderValueGrowth = comparisonSales ? getGrowthRate(sales.averageOrderValue, comparisonSales.averageOrderValue) : 0;
   const returningCustomersGrowth = comparisonSales ? getGrowthRate(sales.returningCustomers, comparisonSales.returningCustomers) : 0;
 
-  // Prepare real GA4 sales event timeseries per requirement with granularity aggregation
-  const currentTimeseries = aggregateDataByGranularity(current.timeseries, granularity);
-  const comparisonTimeseries = comparison?.timeseries ? aggregateDataByGranularity(comparison.timeseries, granularity) : [];
-  
+  // Use exact same GA4 data as scorecards with time dimension
+  const { purchaseTimeseries, purchaseRevenueTimeseries, returningCustomersTimeseries } = timeseriesData;
+
   // Create proper x-axis labels based on granularity
-  const xAxisLabels = currentTimeseries.map((pt, index, arr) => {
+  const xAxisLabels = purchaseTimeseries.timeseries.map((pt: any, index: number, arr: any[]) => {
     const date = new Date(pt.date);
     if (granularity === 'day') {
       const currentMonth = date.getMonth();
@@ -204,11 +239,16 @@ export function SalesBlock() {
     }
   });
   
+  // Map GA4 timeseries data to chart series - exact same data as scorecards
   const currentSeriesByMetric = {
-    completedPurchases: currentTimeseries.map(pt => pt.completedPurchases || 0),
-    totalOrderValue: currentTimeseries.map(pt => pt.totalOrderValue || 0),
-    averageOrderValue: currentTimeseries.map(pt => pt.averageOrderValue || 0),
-    returningCustomers: currentTimeseries.map(pt => pt.returningCustomers || 0),
+    completedPurchases: purchaseTimeseries.timeseries.map((pt: any) => pt.value || 0),
+    totalOrderValue: purchaseRevenueTimeseries.timeseries.map((pt: any) => pt.value || 0),
+    averageOrderValue: purchaseTimeseries.timeseries.map((pt: any, index: number) => {
+      const purchases = pt.value || 0;
+      const revenue = (purchaseRevenueTimeseries.timeseries[index] as any)?.value || 0;
+      return purchases > 0 ? Math.round(revenue / purchases) : 0;
+    }),
+    returningCustomers: returningCustomersTimeseries.timeseries.map((pt: any) => pt.value || 0),
   };
   
   // Temporarily hide comparison functionality
@@ -221,7 +261,6 @@ export function SalesBlock() {
   };
   
   // For tooltip: map current x to the exact comparison date label (aligned by index)
-  const compareDateByIndex = comparisonTimeseries.map(pt => pt?.date || '');
   const comparisonModeText = data?.comparisonMode === 'yoy' ? 'föregående år' : data?.comparisonMode === 'prev' ? 'föregående period' : '';
 
   // Create series data based on active toggles
@@ -356,8 +395,8 @@ export function SalesBlock() {
         const comparisonValues = series[1] ? series[1][dataPointIndex] : null;
         
         // Get the actual date from the current timeseries data
-        const currentDataPoint = currentTimeseries[dataPointIndex];
-        const comparisonDataPoint = comparisonTimeseries[dataPointIndex];
+        const currentDataPoint = purchaseTimeseries.timeseries[dataPointIndex] as any;
+        const comparisonDataPoint = null; // No comparison data for now
         
         let currentDateLabel = currentLabel;
         let comparisonDateLabel = "";
@@ -376,19 +415,7 @@ export function SalesBlock() {
           }
         }
         
-        if (comparisonDataPoint) {
-          const compareDate = new Date(comparisonDataPoint.date);
-          if (granularity === 'day') {
-            comparisonDateLabel = compareDate.toLocaleDateString('sv-SE', { day: '2-digit', month: 'short' });
-          } else if (granularity === 'week') {
-            const monday = new Date(compareDate);
-            monday.setDate(compareDate.getDate() - (compareDate.getDay() === 0 ? 6 : compareDate.getDay() - 1));
-            const week = getWeekNumber(monday);
-            comparisonDateLabel = `v. ${week}`;
-          } else { // month
-            comparisonDateLabel = compareDate.toLocaleDateString('sv-SE', { month: 'short', year: 'numeric' });
-          }
-        }
+        // No comparison data for now
         
         let tooltipContent = `
           <div style="padding: 12px; background: white; border: 1px solid #e5e7eb; border-radius: 6px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); font-family: inherit;">

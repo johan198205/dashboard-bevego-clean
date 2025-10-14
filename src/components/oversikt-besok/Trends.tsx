@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AnalyticsBlock } from '@/components/ui/analytics-block';
 import { LineChart, BarChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { formatNumber, formatPercent, formatDateTooltip } from '@/utils/format';
@@ -25,8 +25,42 @@ type Props = {
 type ChartType = 'line' | 'bar';
 
 export function Trends({ data, activeSeries, granularity = 'day', onGranularityChange }: Props) {
+  const { state } = useFilters();
   // Chart type control: Linje | Stapeldiagram
   const [chartType, setChartType] = useState<ChartType>('line');
+  
+  // State for GA4 timeseries data
+  const [timeseriesData, setTimeseriesData] = useState<TimePoint[]>([]);
+  const [timeseriesLoading, setTimeseriesLoading] = useState(false);
+
+  // Fetch GA4 timeseries data when granularity or date range changes
+  useEffect(() => {
+    const fetchTimeseriesData = async () => {
+      setTimeseriesLoading(true);
+      try {
+        const params = new URLSearchParams({ 
+          start: state.range.start, 
+          end: state.range.end, 
+          grain: granularity,
+          compare: 'none'
+        });
+        
+        const url = `/api/ga4/overview?${params.toString()}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const payload = await res.json();
+          setTimeseriesData(payload.timeseries || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch timeseries data:', error);
+        setTimeseriesData([]);
+      } finally {
+        setTimeseriesLoading(false);
+      }
+    };
+
+    fetchTimeseriesData();
+  }, [state.range.start, state.range.end, granularity]);
 
   // Helper function to get week number (reused from leads chart)
   const getWeekNumber = (date: Date): number => {
@@ -53,8 +87,8 @@ export function Trends({ data, activeSeries, granularity = 'day', onGranularityC
     }
   };
 
-  // Transform data for the chart
-  const chartData = data.map(point => ({
+  // Transform data for the chart - use fetched timeseries data
+  const chartData = timeseriesData.map(point => ({
     ...point,
     // Format date for display based on granularity
     dateFormatted: formatDateLabel(point.date, granularity)
@@ -147,7 +181,7 @@ export function Trends({ data, activeSeries, granularity = 'day', onGranularityC
 
   // Find max values for Y-axis scaling based on currently active series only
   const maxCounts = (() => {
-    const keys: Array<{ key: keyof typeof data[number]; enabled: boolean }> = [
+    const keys: Array<{ key: keyof typeof timeseriesData[number]; enabled: boolean }> = [
       { key: 'sessions', enabled: activeSeries?.sessions !== false },
       { key: 'engagedSessions', enabled: activeSeries?.engagedSessions !== false },
       { key: 'engagementRatePct', enabled: !!activeSeries?.engagementRatePct },
@@ -157,11 +191,11 @@ export function Trends({ data, activeSeries, granularity = 'day', onGranularityC
     const effectiveKeys = keys.filter(k => k.enabled);
     if (!anyEnabled) {
       // Fallback to sessions if nothing is enabled (shouldn't happen)
-      return Math.max(...data.map(d => d.sessions));
+      return Math.max(...timeseriesData.map(d => d.sessions));
     }
     return Math.max(
       1,
-      ...data.map(d => Math.max(...effectiveKeys.map(k => Number((d as any)[k.key] || 0))))
+      ...timeseriesData.map(d => Math.max(...effectiveKeys.map(k => Number((d as any)[k.key] || 0))))
     );
   })();
   const maxPct = 100;
