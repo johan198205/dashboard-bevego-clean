@@ -161,16 +161,32 @@ export function buildBreakdown(keys: string[], total: number, previousBreakdown?
 export function buildKpiResponse(metric: string, series: KpiPoint[], previous?: KpiPoint[], breakdownKeys?: string[], notes?: string[], source: "mock" | "ga4" = 'mock', previousBreakdown?: BreakdownRow[]): KpiResponse {
   const currentAgg = sumSeries(series);
   let summary: Diff = { current: currentAgg, prev: 0, yoyPct: 0 };
+  
+  // Properly align comparison data with current period for YoY comparisons
+  let alignedPrevious: KpiPoint[] | undefined;
   if (previous) {
-    const prevAgg = sumSeries(previous);
-    summary = computeDiff(currentAgg, prevAgg);
+    // Import alignYoySeries dynamically to avoid circular imports
+    const { alignYoySeries } = require('../yoy');
+    const alignedData = alignYoySeries(series, previous);
+    
+    // Extract only the previous values that have matching current periods
+    alignedPrevious = alignedData
+      .filter(({ current, previous }) => current && previous)
+      .map(({ previous }) => previous!);
+    
+    // Calculate summary using aligned data
+    if (alignedPrevious.length > 0) {
+      const prevAgg = sumSeries(alignedPrevious);
+      summary = computeDiff(currentAgg, prevAgg);
+    }
   }
+  
   const breakdown = breakdownKeys ? buildBreakdown(breakdownKeys, currentAgg, previousBreakdown) : undefined;
   return {
     meta: { source, metric, dims: [] },
     summary,
     timeseries: series,
-    compareTimeseries: previous,
+    compareTimeseries: alignedPrevious,
     breakdown,
     notes,
   };
@@ -180,16 +196,32 @@ export function buildKpiResponse(metric: string, series: KpiPoint[], previous?: 
 export function buildAverageKpiResponse(metric: string, series: KpiPoint[], previous?: KpiPoint[], breakdownKeys?: string[], notes?: string[], source: "mock" | "ga4" = 'mock', previousBreakdown?: BreakdownRow[]): KpiResponse {
   const currentAvg = series.length > 0 ? series.reduce((sum, p) => sum + p.value, 0) / series.length : 0;
   let summary: Diff = { current: currentAvg, prev: 0, yoyPct: 0 };
+  
+  // Properly align comparison data with current period for YoY comparisons
+  let alignedPrevious: KpiPoint[] | undefined;
   if (previous && previous.length > 0) {
-    const prevAvg = previous.reduce((sum, p) => sum + p.value, 0) / previous.length;
-    summary = computeDiff(currentAvg, prevAvg);
+    // Import alignYoySeries dynamically to avoid circular imports
+    const { alignYoySeries } = require('../yoy');
+    const alignedData = alignYoySeries(series, previous);
+    
+    // Extract only the previous values that have matching current periods
+    alignedPrevious = alignedData
+      .filter(({ current, previous }) => current && previous)
+      .map(({ previous }) => previous!);
+    
+    // Calculate average using aligned data
+    if (alignedPrevious.length > 0) {
+      const prevAvg = alignedPrevious.reduce((sum, p) => sum + p.value, 0) / alignedPrevious.length;
+      summary = computeDiff(currentAvg, prevAvg);
+    }
   }
+  
   const breakdown = breakdownKeys ? buildBreakdown(breakdownKeys, currentAvg, previousBreakdown) : undefined;
   return {
     meta: { source, metric, dims: [] },
     summary,
     timeseries: series,
-    compareTimeseries: previous,
+    compareTimeseries: alignedPrevious,
     breakdown,
     notes,
   };
