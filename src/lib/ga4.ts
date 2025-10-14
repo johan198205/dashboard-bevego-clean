@@ -731,6 +731,212 @@ export class GA4Client {
     });
   }
 
+  // Get purchase count for completed purchases (event_name == "purchase")
+  async getPurchaseCount(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getPurchaseCount', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const expressions: any[] = [];
+
+    // Required host filter
+    expressions.push({
+      filter: {
+        fieldName: 'hostName',
+        stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' }
+      }
+    });
+
+    // Optional channel/device filters
+    if (filters?.channel && filters.channel !== 'Alla') {
+      expressions.push({
+        filter: {
+          fieldName: 'sessionDefaultChannelGroup',
+          stringFilter: { matchType: 'EXACT', value: filters.channel }
+        }
+      });
+    }
+    if (filters?.device && filters.device !== 'Alla') {
+      expressions.push({
+        filter: {
+          fieldName: 'deviceCategory',
+          stringFilter: { matchType: 'EXACT', value: filters.device }
+        }
+      });
+    }
+
+    // Purchase event filter
+    expressions.push({
+      filter: {
+        fieldName: 'eventName',
+        stringFilter: { matchType: 'EXACT', value: 'purchase' }
+      }
+    });
+
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      metrics: [{ name: 'eventCount' }],
+      dimensionFilter: { andGroup: { expressions } },
+    } as any;
+
+    const response = await this.runReport(request);
+    const row = response.rows?.[0];
+    const count = Number(row?.metricValues?.[0]?.value || 0);
+    
+    this.cache.set(cacheKey, count);
+    return count;
+  }
+
+  // Get purchase revenue (purchaseRevenue metric)
+  async getPurchaseRevenue(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getPurchaseRevenue', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const expressions: any[] = [];
+
+    // Required host filter
+    expressions.push({
+      filter: {
+        fieldName: 'hostName',
+        stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' }
+      }
+    });
+
+    // Optional channel/device filters
+    if (filters?.channel && filters.channel !== 'Alla') {
+      expressions.push({
+        filter: {
+          fieldName: 'sessionDefaultChannelGroup',
+          stringFilter: { matchType: 'EXACT', value: filters.channel }
+        }
+      });
+    }
+    if (filters?.device && filters.device !== 'Alla') {
+      expressions.push({
+        filter: {
+          fieldName: 'deviceCategory',
+          stringFilter: { matchType: 'EXACT', value: filters.device }
+        }
+      });
+    }
+
+    // Purchase event filter
+    expressions.push({
+      filter: {
+        fieldName: 'eventName',
+        stringFilter: { matchType: 'EXACT', value: 'purchase' }
+      }
+    });
+
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      metrics: [{ name: 'purchaseRevenue' }],
+      dimensionFilter: { andGroup: { expressions } },
+    } as any;
+
+    const response = await this.runReport(request);
+    const row = response.rows?.[0];
+    const revenue = Number(row?.metricValues?.[0]?.value || 0);
+    
+    this.cache.set(cacheKey, revenue);
+    return revenue;
+  }
+
+  // Get returning customers count (returning users who actually made purchases)
+  async getReturningCustomersCount(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getReturningCustomersCount', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const expressions: any[] = [];
+
+    // Required host filter
+    expressions.push({
+      filter: {
+        fieldName: 'hostName',
+        stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' }
+      }
+    });
+
+    // Optional channel/device filters
+    if (filters?.channel && filters.channel !== 'Alla') {
+      expressions.push({
+        filter: {
+          fieldName: 'sessionDefaultChannelGroup',
+          stringFilter: { matchType: 'EXACT', value: filters.channel }
+        }
+      });
+    }
+    if (filters?.device && filters.device !== 'Alla') {
+      expressions.push({
+        filter: {
+          fieldName: 'deviceCategory',
+          stringFilter: { matchType: 'EXACT', value: filters.device }
+        }
+      });
+    }
+
+    // Returning users filter
+    expressions.push({
+      filter: {
+        fieldName: 'newVsReturning',
+        stringFilter: { matchType: 'EXACT', value: 'returning' }
+      }
+    });
+
+    // Purchase event filter - only count returning users who actually made purchases
+    expressions.push({
+      filter: {
+        fieldName: 'eventName',
+        stringFilter: { matchType: 'EXACT', value: 'purchase' }
+      }
+    });
+
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      metrics: [{ name: 'activeUsers' }], // Count unique users
+      dimensionFilter: { andGroup: { expressions } },
+    } as any;
+
+    try {
+      const response = await this.runReport(request);
+      const row = response.rows?.[0];
+      const count = Number(row?.metricValues?.[0]?.value || 0);
+      
+      this.cache.set(cacheKey, count);
+      return count;
+    } catch (error) {
+      // Fallback: if newVsReturning + purchase combination not supported,
+      // try to get returning users who made purchases using a different approach
+      console.warn('newVsReturning + purchase combination not supported, using fallback calculation');
+      
+      try {
+        // Get all users who made purchases
+        const [purchaseUsers, totalUsers, newUsers] = await Promise.all([
+          this.getPurchaseCount(startDate, endDate, filters), // This gives us purchase events, not unique users
+          this.getSummaryKPIs(startDate, endDate, filters).then(s => s.totalUsers),
+          this.getSummaryKPIs(startDate, endDate, filters).then(s => s.newUsers)
+        ]);
+        
+        // Estimate returning customers as a percentage of purchase events
+        // This is not perfect but better than counting all returning users
+        const returningUsersRatio = Math.max(0, (totalUsers - newUsers) / totalUsers);
+        const estimatedReturningCustomers = Math.round(purchaseUsers * returningUsersRatio);
+        
+        this.cache.set(cacheKey, estimatedReturningCustomers);
+        return estimatedReturningCustomers;
+      } catch (fallbackError) {
+        console.warn('Fallback calculation failed, returning 0');
+        this.cache.set(cacheKey, 0);
+        return 0;
+      }
+    }
+  }
+
   // Helper method to format week date from GA4 yearWeek format
   private formatWeekDate(yearWeek: string): string {
     // yearWeek format: YYYYWW (e.g., 202401)

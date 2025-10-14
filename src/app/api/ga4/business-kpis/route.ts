@@ -133,15 +133,25 @@ export async function GET(req: NextRequest) {
     // - ecommerceApplications -> event_name == "ehandel_ansok"
     // - formLeads             -> event_name == "form_submit"
     // - quoteRequests         -> no GA4 event available → always 0 (card shows "No data")
+    
+    // Sales KPI mapping with real GA4 data:
+    // - completedPurchases    -> event_name == "purchase" (eventCount metric)
+    // - totalOrderValue       -> event_name == "purchase" (purchaseRevenue metric)
+    // - averageOrderValue     -> purchaseRevenue / purchaseCount (with division by zero guard)
+    // - returningCustomers    -> newVsReturning="returning" + event_name="purchase" + activeUsers metric (returning users who actually made purchases)
 
     const [customerApplicationsCount, ecommerceApplicationsCount, formLeadsCount,
-      customerApplicationsSeries, ecommerceApplicationsSeries, formLeadsSeries] = await Promise.all([
+      customerApplicationsSeries, ecommerceApplicationsSeries, formLeadsSeries,
+      purchaseCount, purchaseRevenue, returningCustomersCount] = await Promise.all([
       client.getEventCountByName(start, end, 'ansok_klick', filters),
       client.getEventCountByName(start, end, 'ehandel_ansok', filters),
       client.getEventCountByName(start, end, 'form_submit', filters),
       client.getEventTimeseriesByName(start, end, 'ansok_klick', filters),
       client.getEventTimeseriesByName(start, end, 'ehandel_ansok', filters),
       client.getEventTimeseriesByName(start, end, 'form_submit', filters),
+      client.getPurchaseCount(start, end, filters),
+      client.getPurchaseRevenue(start, end, filters),
+      client.getReturningCustomersCount(start, end, filters),
     ]);
 
     const businessData: BusinessKpiData = {
@@ -152,10 +162,10 @@ export async function GET(req: NextRequest) {
         formLeads: formLeadsCount,
       },
       sales: {
-        completedPurchases: Math.round(currentSummary.sessions * 0.03), // 3% conversion rate
-        totalOrderValue: Math.round(currentSummary.sessions * 0.03 * 2500), // Average order value 2500 SEK
-        averageOrderValue: 2500,
-        returningCustomers: currentSummary.returningUsers || 0,
+        completedPurchases: purchaseCount,
+        totalOrderValue: purchaseRevenue,
+        averageOrderValue: purchaseCount > 0 ? Math.round(purchaseRevenue / purchaseCount) : 0,
+        returningCustomers: returningCustomersCount,
       },
       efficiency: {
         conversionRate: currentSummary.sessions > 0 ? (currentSummary.sessions * 0.03 / currentSummary.sessions) * 100 : 0,
@@ -200,13 +210,17 @@ export async function GET(req: NextRequest) {
         ]);
 
         const [prevCustomerApps, prevEcomApps, prevFormLeads,
-          prevCustomerAppsSeries, prevEcomAppsSeries, prevFormLeadsSeries] = await Promise.all([
+          prevCustomerAppsSeries, prevEcomAppsSeries, prevFormLeadsSeries,
+          prevPurchaseCount, prevPurchaseRevenue, prevReturningCustomersCount] = await Promise.all([
           client.getEventCountByName(prevRange.start, prevRange.end, 'ansok_klick', filters),
           client.getEventCountByName(prevRange.start, prevRange.end, 'ehandel_ansok', filters),
           client.getEventCountByName(prevRange.start, prevRange.end, 'form_submit', filters),
           client.getEventTimeseriesByName(prevRange.start, prevRange.end, 'ansok_klick', filters),
           client.getEventTimeseriesByName(prevRange.start, prevRange.end, 'ehandel_ansok', filters),
           client.getEventTimeseriesByName(prevRange.start, prevRange.end, 'form_submit', filters),
+          client.getPurchaseCount(prevRange.start, prevRange.end, filters),
+          client.getPurchaseRevenue(prevRange.start, prevRange.end, filters),
+          client.getReturningCustomersCount(prevRange.start, prevRange.end, filters),
         ]);
 
         comparisonData = {
@@ -217,10 +231,10 @@ export async function GET(req: NextRequest) {
             formLeads: prevFormLeads,
           },
           sales: {
-            completedPurchases: Math.round(prevSummary.sessions * 0.03),
-            totalOrderValue: Math.round(prevSummary.sessions * 0.03 * 2500),
-            averageOrderValue: 2500,
-            returningCustomers: prevSummary.returningUsers || 0,
+            completedPurchases: prevPurchaseCount,
+            totalOrderValue: prevPurchaseRevenue,
+            averageOrderValue: prevPurchaseCount > 0 ? Math.round(prevPurchaseRevenue / prevPurchaseCount) : 0,
+            returningCustomers: prevReturningCustomersCount,
           },
           efficiency: {
             conversionRate: prevSummary.sessions > 0 ? (prevSummary.sessions * 0.03 / prevSummary.sessions) * 100 : 0,

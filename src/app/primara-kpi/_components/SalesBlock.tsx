@@ -70,10 +70,12 @@ export function SalesBlock() {
   const sales = current.sales;
   const comparisonSales = comparison?.sales;
 
-  // Calculate growth rates
+  // Calculate growth rates using same method as rest of system (computeDiff)
   const getGrowthRate = (current: number, previous: number) => {
-    if (!previous || previous === 0) return 0;
-    return ((current - previous) / previous) * 100;
+    const delta = current - previous;
+    // Use Math.max to avoid division by zero, consistent with computeDiff in yoy.ts
+    const denominator = Math.max(Math.abs(previous), 0.000001);
+    return Math.round((delta / denominator) * 10000) / 100; // Two decimal places like toPct
   };
 
   const completedPurchasesGrowth = comparisonSales ? getGrowthRate(sales.completedPurchases, comparisonSales.completedPurchases) : 0;

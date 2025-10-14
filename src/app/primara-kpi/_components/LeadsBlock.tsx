@@ -73,8 +73,8 @@ export function LeadsBlock() {
   const { data, loading, error } = useBusinessKpis();
   const [granularity, setGranularity] = useState<Granularity>('day');
   const [activeSeries, setActiveSeries] = useState({
-    quoteRequests: true,
-    customerApplications: false,
+    quoteRequests: false,
+    customerApplications: true,
     ecommerceApplications: false,
     formLeads: false,
   });
@@ -133,10 +133,12 @@ export function LeadsBlock() {
   const leads = current.leads;
   const comparisonLeads = comparison?.leads;
 
-  // Calculate growth rates
+  // Calculate growth rates using same method as rest of system (computeDiff)
   const getGrowthRate = (current: number, previous: number) => {
-    if (!previous || previous === 0) return 0;
-    return ((current - previous) / previous) * 100;
+    const delta = current - previous;
+    // Use Math.max to avoid division by zero, consistent with computeDiff in yoy.ts
+    const denominator = Math.max(Math.abs(previous), 0.000001);
+    return Math.round((delta / denominator) * 10000) / 100; // Two decimal places like toPct
   };
 
   const quoteRequestsGrowth = comparisonLeads ? getGrowthRate(leads.quoteRequests, comparisonLeads.quoteRequests) : 0;
@@ -288,7 +290,7 @@ export function LeadsBlock() {
       }
     } : {},
     grid: { 
-      strokeDashArray: 5, 
+      strokeDashArray: 0, 
       yaxis: { lines: { show: true } },
       xaxis: { lines: { show: false } }
     },
@@ -434,12 +436,12 @@ export function LeadsBlock() {
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="relative">
-          {/* Toggle switch */}
-          <div className="absolute right-4 bottom-4 z-10 pointer-events-auto">
+          {/* Toggle switch (disabled - no data) */}
+          <div className="absolute right-4 bottom-4 z-10 pointer-events-none opacity-50">
             <Switch
-              checked={activeSeries.quoteRequests}
-              onChange={(val) => setActiveSeries(prev => ({ ...prev, quoteRequests: val }))}
-              ariaLabel="Visa Offertförfrågningar i diagrammet"
+              checked={false}
+              onChange={() => {}}
+              ariaLabel="Offertförfrågningar är inaktiverad (ingen data)"
               backgroundSize="sm"
             />
           </div>
@@ -450,7 +452,7 @@ export function LeadsBlock() {
             Icon={MessageOutlineIcon}
             variant="primary"
             source="GA4 API"
-            className="min-h-[208px] relative pr-5 pb-6"
+            className="min-h-[208px] relative pr-5 pb-6 opacity-50 grayscale pointer-events-none"
             comparisonLabel={undefined}
           />
         </div>
