@@ -14,8 +14,26 @@ export default function Page() {
               {FEATURE_FLAGS.conversions ? 'Aktiverad' : 'Inaktiverad'}
             </span>
           </div>
+          <div className="flex items-center justify-between">
+            <span>Header Sökfält</span>
+            <span className={`badge ${FEATURE_FLAGS.headerSearch ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+              {FEATURE_FLAGS.headerSearch ? 'Aktiverad' : 'Inaktiverad'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Header Temaväxlare</span>
+            <span className={`badge ${FEATURE_FLAGS.headerThemeToggle ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+              {FEATURE_FLAGS.headerThemeToggle ? 'Aktiverad' : 'Inaktiverad'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span>Header Notifikationer</span>
+            <span className={`badge ${FEATURE_FLAGS.headerNotifications ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+              {FEATURE_FLAGS.headerNotifications ? 'Aktiverad' : 'Inaktiverad'}
+            </span>
+          </div>
           <div className="text-xs text-gray-500">
-            Ändra FEATURE_FLAGS.conversions i installningar/page.tsx för att aktivera
+            Ändra FEATURE_FLAGS i src/lib/feature-flags.ts för att aktivera/deaktivera funktioner
           </div>
         </div>
       </div>
