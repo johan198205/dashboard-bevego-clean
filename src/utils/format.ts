@@ -11,6 +11,17 @@ export function formatNumber(value: number): string {
 }
 
 /**
+ * Format SEK currency with 2 decimal places
+ * Example: 2.43 → "2,43 SEK"
+ */
+export function formatSEK(value: number): string {
+  return new Intl.NumberFormat(SV, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(value) + ' SEK';
+}
+
+/**
  * Format percentage with 1 decimal place
  * Example: 73.456 → "73,5%"
  */
@@ -20,6 +31,17 @@ export function formatPercent(value: number): string {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1
   }).format(value / 100);
+}
+
+/**
+ * Format ROAS as percentage (multiply by 100)
+ * Example: 14.07 → "1 407%"
+ */
+export function formatROAS(value: number): string {
+  return new Intl.NumberFormat(SV, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0
+  }).format(value * 100) + '%';
 }
 
 /**

@@ -17,10 +17,12 @@ export type BusinessKpiData = {
   };
   efficiency: {
     conversionRate: number;
-    cpaLeads: number;
-    cpaCustomers: number;
-    roi: number;
+    costPerKeyEvent: number;
+    adsCostPerClick: number;
+    roas: number;
   };
+  adsCost: number;
+  totalRevenue: number;
   timeseries: {
     date: string;
     leads: number;
@@ -32,10 +34,10 @@ export type BusinessKpiData = {
   }[];
   channelBreakdown: {
     channel: string;
-    leads: number;
-    sales: number;
+    sessions: number;
+    activeUsers: number;
+    purchases: number;
     conversion: number;
-    cpa: number;
   }[];
   sampled: boolean;
 };
@@ -99,12 +101,12 @@ export function useBusinessKpis() {
           const endDate = new Date(params.get('end') || '2025-10-13');
           const timeseries = [];
           const channelBreakdown = [
-            { channel: 'Organiskt', leads: 28, sales: 7, conversion: 25.0, cpa: 120 },
-            { channel: 'Direkt', leads: 15, sales: 3, conversion: 20.0, cpa: 80 },
-            { channel: 'Betald sök', leads: 12, sales: 2, conversion: 16.7, cpa: 200 },
-            { channel: 'Social', leads: 8, sales: 0, conversion: 0.0, cpa: 150 },
-            { channel: 'E-post', leads: 4, sales: 0, conversion: 0.0, cpa: 50 }
-          ];
+            { channel: 'Organiskt', sessions: 140, activeUsers: 120, purchases: 7, conversion: 5.0 },
+            { channel: 'Direkt', sessions: 75, activeUsers: 65, purchases: 3, conversion: 4.0 },
+            { channel: 'Betald sök', sessions: 60, activeUsers: 55, purchases: 2, conversion: 3.3 },
+            { channel: 'Social', sessions: 40, activeUsers: 35, purchases: 0, conversion: 0.0 },
+            { channel: 'E-post', sessions: 20, activeUsers: 18, purchases: 0, conversion: 0.0 }
+          ].sort((a, b) => b.purchases - a.purchases); // Sort by purchases descending
 
           // Generate timeseries data for the date range
           for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
@@ -136,10 +138,12 @@ export function useBusinessKpis() {
               },
               efficiency: {
                 conversionRate: 3.2,
-                cpaLeads: 150,
-                cpaCustomers: 500,
-                roi: 320
+                costPerKeyEvent: 150,
+                adsCostPerClick: 500,
+                roas: 320
               },
+              adsCost: 0, // Placeholder - no longer used
+              totalRevenue: 30000,
               timeseries,
               channelBreakdown,
               sampled: false

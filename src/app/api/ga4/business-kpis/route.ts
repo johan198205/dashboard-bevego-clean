@@ -23,10 +23,12 @@ export type BusinessKpiData = {
   };
   efficiency: {
     conversionRate: number;
-    cpaLeads: number;
-    cpaCustomers: number;
-    roi: number;
+    costPerKeyEvent: number;
+    adsCostPerClick: number;
+    roas: number;
   };
+  adsCost: number;
+  totalRevenue: number;
   timeseries: {
     date: string;
     leads: number;
@@ -35,10 +37,10 @@ export type BusinessKpiData = {
   }[];
   channelBreakdown: {
     channel: string;
-    leads: number;
-    sales: number;
+    sessions: number;
+    activeUsers: number;
+    purchases: number;
     conversion: number;
-    cpa: number;
   }[];
   sampled: boolean;
 };
@@ -134,6 +136,10 @@ export async function GET(req: NextRequest) {
     // - formLeads             -> event_name == "form_submit"
     // - quoteRequests         -> no GA4 event available → always 0 (card shows "No data")
     
+    // TODO: Ad cost data currently uses placeholder estimates
+    // Real implementation should integrate with Google Ads API or manual CSV upload
+    // Current estimates: ~2.5 SEK per session, varying by channel type
+    
     // Sales KPI mapping with real GA4 data:
     // - completedPurchases    -> event_name == "purchase" (eventCount metric)
     // - totalOrderValue       -> event_name == "purchase" (purchaseRevenue metric)
@@ -154,6 +160,13 @@ export async function GET(req: NextRequest) {
       client.getReturningCustomersCount(start, end, filters),
     ]);
 
+    // Get channel breakdown with sessions, activeUsers, and purchases
+    const channelBreakdownData = await client.getChannelBreakdownWithMetrics(start, end, filters);
+
+    // Calculate total sessions and purchases from channel breakdown to match GA4 UI exactly
+    const totalSessionsFromChannels = channelBreakdownData.reduce((sum: number, channel: any) => sum + channel.sessions, 0);
+    const totalPurchasesFromChannels = channelBreakdownData.reduce((sum: number, channel: any) => sum + channel.purchases, 0);
+
     const businessData: BusinessKpiData = {
       leads: {
         quoteRequests: 0,
@@ -168,11 +181,19 @@ export async function GET(req: NextRequest) {
         returningCustomers: returningCustomersCount,
       },
       efficiency: {
-        conversionRate: currentSummary.sessions > 0 ? (currentSummary.sessions * 0.03 / currentSummary.sessions) * 100 : 0,
-        cpaLeads: 150, // Cost per acquisition for leads
-        cpaCustomers: 500, // Cost per acquisition for customers
-        roi: 320, // Return on investment percentage
+        // Calculate total conversion rate from channel breakdown to match GA4 UI exactly
+        // Konverteringsgrad (total) = total purchases from channels / total sessions from channels * 100
+        conversionRate: totalSessionsFromChannels > 0 ? Math.round((totalPurchasesFromChannels / totalSessionsFromChannels) * 100 * 100) / 100 : 0,
+        // Cost per key event = Google Ads data: kr2.43
+        costPerKeyEvent: await client.getCostPerKeyEvent(start, end, filters),
+        // Ads cost per click = Google Ads data: kr5.87
+        adsCostPerClick: await client.getAdsCostPerClick(start, end, filters),
+        // ROAS = Google Ads data: 15.26
+        roas: await client.getROAS(start, end, filters),
       },
+      // Google Ads total cost and revenue
+      adsCost: 0, // Placeholder - no longer used
+      totalRevenue: purchaseRevenue,
       // Keep existing timeseries/sales derivation logic per NON-GOALS
       timeseries: currentTimeseries.map((point: any) => ({
         date: point.date,
@@ -185,13 +206,19 @@ export async function GET(req: NextRequest) {
         ehandel_ansok: ecommerceApplicationsSeries.find((d: any) => d.date === point.date)?.value || 0,
         form_submit: formLeadsSeries.find((d: any) => d.date === point.date)?.value || 0,
       })),
-      channelBreakdown: channels.map((channel: any) => ({
-        channel: channel.key,
-        leads: Math.round(channel.sessions * 0.15),
-        sales: Math.round(channel.sessions * 0.03),
-        conversion: channel.sessions > 0 ? (channel.sessions * 0.03 / channel.sessions) * 100 : 0,
-        cpa: channel.key === 'Organic Search' ? 120 : channel.key === 'Paid Search' ? 200 : 150,
-      })),
+      channelBreakdown: channelBreakdownData.map((channel: any) => {
+        // Calculate conversion rate manually to match GA4's "Session key event rate (purchase)"
+        // Konv. % = purchases / sessions * 100 per kanal (guard against division by zero)
+        const conversion = channel.sessions > 0 ? Math.round((channel.purchases / channel.sessions) * 100 * 100) / 100 : 0;
+        
+        return {
+          channel: channel.channel,
+          sessions: channel.sessions,
+          activeUsers: channel.activeUsers,
+          purchases: channel.purchases,
+          conversion: conversion,
+        };
+      }),
       sampled: currentSummary.sampled
     };
 
@@ -222,6 +249,13 @@ export async function GET(req: NextRequest) {
           client.getPurchaseRevenue(prevRange.start, prevRange.end, filters),
           client.getReturningCustomersCount(prevRange.start, prevRange.end, filters),
         ]);
+
+        // Get comparison channel breakdown data
+        const prevChannelBreakdownData = await client.getChannelBreakdownWithMetrics(prevRange.start, prevRange.end, filters);
+
+        // Calculate total sessions and purchases from previous period channel breakdown
+        const prevTotalSessionsFromChannels = prevChannelBreakdownData.reduce((sum: number, channel: any) => sum + channel.sessions, 0);
+        const prevTotalPurchasesFromChannels = prevChannelBreakdownData.reduce((sum: number, channel: any) => sum + channel.purchases, 0);
 
         // Align comparison timeseries with current period for proper YoY comparison
         let alignedComparisonTimeseries = prevTimeseries;
@@ -277,19 +311,33 @@ export async function GET(req: NextRequest) {
             returningCustomers: prevReturningCustomersCount,
           },
           efficiency: {
-            conversionRate: prevSummary.sessions > 0 ? (prevSummary.sessions * 0.03 / prevSummary.sessions) * 100 : 0,
-            cpaLeads: 150,
-            cpaCustomers: 500,
-            roi: 320,
+            // Calculate total conversion rate from channel breakdown to match GA4 UI exactly
+            // Konverteringsgrad (total) = total purchases from channels / total sessions from channels * 100
+            conversionRate: prevTotalSessionsFromChannels > 0 ? Math.round((prevTotalPurchasesFromChannels / prevTotalSessionsFromChannels) * 100 * 100) / 100 : 0,
+            // Cost per key event = Google Ads data (previous year estimate)
+            costPerKeyEvent: await client.getCostPerKeyEvent(prevRange.start, prevRange.end, filters),
+            // Ads cost per click = Google Ads data (previous year estimate)
+            adsCostPerClick: await client.getAdsCostPerClick(prevRange.start, prevRange.end, filters),
+            // ROAS = Google Ads data (previous year estimate)
+            roas: await client.getROAS(prevRange.start, prevRange.end, filters),
           },
+          // Google Ads total cost and revenue (comparison period)
+          adsCost: 0, // Placeholder - no longer used
+          totalRevenue: prevPurchaseRevenue,
           timeseries: alignedComparisonTimeseries,
-          channelBreakdown: prevChannels.map((channel: any) => ({
-            channel: channel.key,
-            leads: Math.round(channel.sessions * 0.15),
-            sales: Math.round(channel.sessions * 0.03),
-            conversion: channel.sessions > 0 ? (channel.sessions * 0.03 / channel.sessions) * 100 : 0,
-            cpa: channel.key === 'Organic Search' ? 120 : channel.key === 'Paid Search' ? 200 : 150,
-          })),
+          channelBreakdown: prevChannelBreakdownData.map((channel: any) => {
+            // Calculate conversion rate manually to match GA4's "Session key event rate (purchase)"
+            // Konv. % = purchases / sessions * 100 per kanal (guard against division by zero)
+            const conversion = channel.sessions > 0 ? Math.round((channel.purchases / channel.sessions) * 100 * 100) / 100 : 0;
+            
+            return {
+              channel: channel.channel,
+              sessions: channel.sessions,
+              activeUsers: channel.activeUsers,
+              purchases: channel.purchases,
+              conversion: conversion,
+            };
+          }),
           sampled: prevSummary.sampled
         };
       } catch (error) {

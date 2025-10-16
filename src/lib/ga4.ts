@@ -406,6 +406,91 @@ export class GA4Client {
     });
   }
 
+  // Get channel breakdown with sessions, activeUsers, and purchases for efficiency table
+  async getChannelBreakdownWithMetrics(startDate: string, endDate: string, filters?: any) {
+    // Check cache first
+    const cacheKey = this.cache.generateKey('getChannelBreakdownWithMetrics', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) {
+      console.log('Using cached channel breakdown with metrics');
+      return cached;
+    }
+
+    try {
+      // Get sessions and activeUsers per channel
+      const sessionsRequest = {
+        property: this.propertyId,
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+        metrics: [
+          { name: 'sessions' },
+          { name: 'activeUsers' }
+        ],
+        dimensionFilter: this.buildDimensionFilter(filters),
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+      };
+
+      // Get purchases per channel (with purchase filter)
+      const purchasesRequest = {
+        property: this.propertyId,
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+        metrics: [{ name: 'eventCount' }],
+        dimensionFilter: this.buildFilterExpression(filters, [
+          {
+            filter: {
+              fieldName: 'eventName',
+              stringFilter: { matchType: 'EXACT', value: 'purchase' }
+            }
+          }
+        ]),
+        orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }],
+      };
+
+      const [sessionsResponse, purchasesResponse] = await Promise.all([
+        this.runReport(sessionsRequest),
+        this.runReport(purchasesRequest)
+      ]);
+
+      // Create maps for easy lookup
+      const sessionsMap = new Map();
+      const purchasesMap = new Map();
+
+      sessionsResponse.rows?.forEach((row: any) => {
+        const channel = row.dimensionValues?.[0]?.value || 'Unknown';
+        const sessions = Number(row.metricValues?.[0]?.value || 0);
+        const activeUsers = Number(row.metricValues?.[1]?.value || 0);
+        sessionsMap.set(channel, { sessions, activeUsers });
+      });
+
+      purchasesResponse.rows?.forEach((row: any) => {
+        const channel = row.dimensionValues?.[0]?.value || 'Unknown';
+        const purchases = Number(row.metricValues?.[0]?.value || 0);
+        purchasesMap.set(channel, purchases);
+      });
+
+      // Combine data and sort by purchases (descending)
+      const result = Array.from(sessionsMap.keys()).map(channel => {
+        const sessionData = sessionsMap.get(channel) || { sessions: 0, activeUsers: 0 };
+        const purchases = purchasesMap.get(channel) || 0;
+
+        return {
+          channel,
+          sessions: sessionData.sessions,
+          activeUsers: sessionData.activeUsers,
+          purchases
+        };
+      }).sort((a, b) => b.purchases - a.purchases); // Sort by purchases descending
+
+      // Cache the result
+      this.cache.set(cacheKey, result);
+      return result;
+    } catch (error) {
+      console.error('Error fetching channel breakdown with metrics:', error);
+      return [];
+    }
+  }
+
   // Get device distribution
   async getDeviceDistribution(startDate: string, endDate: string, filters?: any) {
     const request = {
@@ -804,55 +889,32 @@ export class GA4Client {
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
 
-    const expressions: any[] = [];
+    try {
+      const request = {
+        property: this.propertyId,
+        dateRanges: [{ startDate, endDate }],
+        metrics: [{ name: 'purchaseRevenue' }],
+        dimensionFilter: this.buildFilterExpression(filters),
+      };
 
-    // Required host filter
-    expressions.push({
-      filter: {
-        fieldName: 'hostName',
-        stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' }
+      const response = await this.runReport(request);
+      const row = response.rows?.[0];
+      
+      if (!row || !row.metricValues?.[0]?.value) {
+        console.log(`getPurchaseRevenue: No data found for ${startDate} to ${endDate}`);
+        return 0;
       }
-    });
 
-    // Optional channel/device filters
-    if (filters?.channel && filters.channel !== 'Alla') {
-      expressions.push({
-        filter: {
-          fieldName: 'sessionDefaultChannelGroup',
-          stringFilter: { matchType: 'EXACT', value: filters.channel }
-        }
-      });
+      const purchaseRevenue = Number(row.metricValues[0].value) || 0;
+      console.log(`getPurchaseRevenue: ${startDate} to ${endDate} = ${purchaseRevenue} (from GA4 purchaseRevenue metric)`);
+
+      // Cache the result
+      this.cache.set(cacheKey, purchaseRevenue);
+      return purchaseRevenue;
+    } catch (error) {
+      console.error('Error fetching purchase revenue:', error);
+      return 0;
     }
-    if (filters?.device && filters.device !== 'Alla') {
-      expressions.push({
-        filter: {
-          fieldName: 'deviceCategory',
-          stringFilter: { matchType: 'EXACT', value: filters.device }
-        }
-      });
-    }
-
-    // Purchase event filter
-    expressions.push({
-      filter: {
-        fieldName: 'eventName',
-        stringFilter: { matchType: 'EXACT', value: 'purchase' }
-      }
-    });
-
-    const request = {
-      property: this.propertyId,
-      dateRanges: [{ startDate, endDate }],
-      metrics: [{ name: 'purchaseRevenue' }],
-      dimensionFilter: { andGroup: { expressions } },
-    } as any;
-
-    const response = await this.runReport(request);
-    const row = response.rows?.[0];
-    const revenue = Number(row?.metricValues?.[0]?.value || 0);
-    
-    this.cache.set(cacheKey, revenue);
-    return revenue;
   }
 
   // Get returning customers count (returning users who actually made purchases)
@@ -966,134 +1028,318 @@ export class GA4Client {
     return targetMonday.toISOString().slice(0, 10);
   }
 
-  // Get event count by event name
-  async getEventCountByName(startDate: string, endDate: string, eventName: string, filters?: any) {
+
+  // Get total conversions (sum of all conversion events)
+  async getTotalConversions(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getTotalConversions', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
     const request = {
       property: this.propertyId,
       dateRanges: [{ startDate, endDate }],
-      metrics: [{ name: 'eventCount' }],
-      dimensionFilter: {
-        andGroup: {
-          expressions: [
-            {
-              filter: {
-                fieldName: 'eventName',
-                stringFilter: { matchType: 'EXACT', value: eventName }
-              }
-            },
-            ...(this.buildDimensionFilter(filters) ? [this.buildDimensionFilter(filters)] : [])
-          ]
-        }
-      }
+      metrics: [{ name: 'conversions' }],
+      dimensionFilter: this.buildDimensionFilter(filters)
     };
 
     const response = await this.runReport(request);
-    const rows = response.rows || [];
-    
-    if (rows.length === 0) return 0;
-    
-    return Number(rows[0].metricValues?.[0]?.value || 0);
+    const row = response.rows?.[0];
+    const conversions = Number(row?.metricValues?.[0]?.value || 0);
+
+    // Ensure non-negative values
+    const safeConversions = Math.max(0, conversions);
+
+    // Cache the result
+    this.cache.set(cacheKey, safeConversions);
+    return safeConversions;
   }
 
-  // Get event timeseries by event name
-  async getEventTimeseriesByName(startDate: string, endDate: string, eventName: string, filters?: any) {
+  // Get conversions timeseries per channel for trend sparklines
+  async getConversionsByChannel(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getConversionsByChannel', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
     const request = {
       property: this.propertyId,
       dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: 'date' }],
-      metrics: [{ name: 'eventCount' }],
-      dimensionFilter: {
-        andGroup: {
-          expressions: [
-            {
-              filter: {
-                fieldName: 'eventName',
-                stringFilter: { matchType: 'EXACT', value: eventName }
-              }
-            },
-            ...(this.buildDimensionFilter(filters) ? [this.buildDimensionFilter(filters)] : [])
-          ]
-        }
-      },
-      orderBys: [{ dimension: { dimensionName: 'date' } }]
+      dimensions: [{ name: 'date' }, { name: 'sessionDefaultChannelGroup' }],
+      metrics: [{ name: 'conversions' }],
+      dimensionFilter: this.buildDimensionFilter(filters),
+      orderBys: [
+        { dimension: { dimensionName: 'sessionDefaultChannelGroup' } },
+        { dimension: { dimensionName: 'date' } }
+      ],
     };
 
     const response = await this.runReport(request);
     const rows = response.rows || [];
 
-    return rows.map((row: any) => {
-      const dateValue = row.dimensionValues?.[0]?.value;
-      const value = Number(row.metricValues?.[0]?.value || 0);
+    // Group by channel and create timeseries
+    const channelData: Record<string, Array<{ date: string; value: number }>> = {};
+    
+    rows.forEach((row: any) => {
+      const date = row.dimensionValues?.[0]?.value;
+      const channel = row.dimensionValues?.[1]?.value || 'Unknown';
+      const conversions = Number(row.metricValues?.[0]?.value || 0);
       
-      return {
-        date: `${dateValue.slice(0,4)}-${dateValue.slice(4,6)}-${dateValue.slice(6,8)}`,
-        value
-      };
+      const formattedDate = `${date.slice(0,4)}-${date.slice(4,6)}-${date.slice(6,8)}`;
+      
+      if (!channelData[channel]) {
+        channelData[channel] = [];
+      }
+      
+      // Ensure non-negative values and valid dates
+      if (formattedDate.length === 10 && conversions >= 0) {
+        channelData[channel].push({
+          date: formattedDate,
+          value: Math.max(0, conversions)
+        });
+      }
     });
+
+    // Cache the result
+    this.cache.set(cacheKey, channelData);
+    return channelData;
   }
 
-  // Get purchase count
-  async getPurchaseCount(startDate: string, endDate: string, filters?: any) {
-    return this.getEventCountByName(startDate, endDate, 'purchase', filters);
-  }
+  // Get ad cost data (placeholder - requires Google Ads integration or manual input)
+  async getAdCost(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getAdCost', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
 
-  // Get purchase revenue
-  async getPurchaseRevenue(startDate: string, endDate: string, filters?: any) {
-    const request = {
-      property: this.propertyId,
-      dateRanges: [{ startDate, endDate }],
-      metrics: [{ name: 'purchaseRevenue' }],
-      dimensionFilter: {
-        andGroup: {
-          expressions: [
-            {
-              filter: {
-                fieldName: 'eventName',
-                stringFilter: { matchType: 'EXACT', value: 'purchase' }
-              }
-            },
-            ...(this.buildDimensionFilter(filters) ? [this.buildDimensionFilter(filters)] : [])
-          ]
-        }
+    try {
+      const request = {
+        property: this.propertyId,
+        dateRanges: [{ startDate, endDate }],
+        metrics: [{ name: 'advertiserAdCost' }],
+        dimensionFilter: this.buildFilterExpression(filters),
+      };
+
+      const response = await this.runReport(request);
+      const row = response.rows?.[0];
+      
+      if (!row || !row.metricValues?.[0]?.value) {
+        console.log(`getAdCost: No data found for ${startDate} to ${endDate}`);
+        return 0;
       }
-    };
 
-    const response = await this.runReport(request);
-    const rows = response.rows || [];
-    
-    if (rows.length === 0) return 0;
-    
-    return Number(rows[0].metricValues?.[0]?.value || 0);
+      const adCost = Number(row.metricValues[0].value) || 0;
+      console.log(`getAdCost: ${startDate} to ${endDate} = ${adCost} (from GA4 advertiserAdCost metric)`);
+
+      // Cache the result
+      this.cache.set(cacheKey, adCost);
+      return adCost;
+    } catch (error) {
+      console.error('Error fetching advertiser ad cost:', error);
+      return 0;
+    }
   }
 
-  // Get returning customers count
-  async getReturningCustomersCount(startDate: string, endDate: string, filters?: any) {
-    const request = {
-      property: this.propertyId,
-      dateRanges: [{ startDate, endDate }],
-      dimensions: [{ name: 'newVsReturning' }],
-      metrics: [{ name: 'activeUsers' }],
-      dimensionFilter: {
-        andGroup: {
-          expressions: [
-            {
-              filter: {
-                fieldName: 'newVsReturning',
-                stringFilter: { matchType: 'EXACT', value: 'returning' }
-              }
-            },
-            ...(this.buildDimensionFilter(filters) ? [this.buildDimensionFilter(filters)] : [])
-          ]
-        }
-      }
-    };
+  // Get ad cost by channel for CPA calculations
+  async getAdCostByChannel(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getAdCostByChannel', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
 
-    const response = await this.runReport(request);
-    const rows = response.rows || [];
+    // TODO: Implement real ad cost data by channel
+    // For now, return estimated costs based on channel type
+    const channels = await this.getChannelDistribution(startDate, endDate, filters);
     
-    if (rows.length === 0) return 0;
-    
-    return Number(rows[0].metricValues?.[0]?.value || 0);
+    const channelCosts: Record<string, number> = {};
+    channels.forEach((channel: any) => {
+      // Placeholder cost estimates per channel
+      const costPerSession = channel.key === 'Paid Search' ? 3.5 : 
+                           channel.key === 'Paid Social' ? 2.0 :
+                           channel.key === 'Display' ? 1.5 : 0;
+      channelCosts[channel.key] = Math.max(0, channel.sessions * costPerSession);
+    });
+
+    // Cache the result
+    this.cache.set(cacheKey, channelCosts);
+    return channelCosts;
+  }
+
+  // Get Google Ads metrics - Cost per key event (conversions)
+  async getCostPerKeyEvent(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getCostPerKeyEvent', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      // Get ad cost and key events (conversions) from GA4
+      const [adCost, keyEvents] = await Promise.all([
+        this.getAdCost(startDate, endDate, filters),
+        this.getKeyEvents(startDate, endDate, filters)
+      ]);
+
+      const costPerKeyEvent = keyEvents > 0 ? adCost / keyEvents : 0;
+      
+      console.log(`getCostPerKeyEvent: ${startDate} to ${endDate} = ${costPerKeyEvent} (${adCost} / ${keyEvents})`);
+
+      // Cache the result
+      this.cache.set(cacheKey, costPerKeyEvent);
+      return costPerKeyEvent;
+    } catch (error) {
+      console.error('Error calculating cost per key event:', error);
+      return 0;
+    }
+  }
+
+  // Get Google Ads metrics - Ads cost per click
+  async getAdsCostPerClick(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getAdsCostPerClick', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      // Get ad cost and ad clicks from GA4
+      const [adCost, adClicks] = await Promise.all([
+        this.getAdCost(startDate, endDate, filters),
+        this.getAdClicks(startDate, endDate, filters)
+      ]);
+
+      const adsCostPerClick = adClicks > 0 ? adCost / adClicks : 0;
+      
+      console.log(`getAdsCostPerClick: ${startDate} to ${endDate} = ${adsCostPerClick} (${adCost} / ${adClicks})`);
+
+      // Cache the result
+      this.cache.set(cacheKey, adsCostPerClick);
+      return adsCostPerClick;
+    } catch (error) {
+      console.error('Error calculating ads cost per click:', error);
+      return 0;
+    }
+  }
+
+  // Get Google Ads metrics - ROAS (Return on Ad Spend)
+  async getROAS(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getROAS', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      // Get ad cost and purchase revenue from GA4
+      const [adCost, purchaseRevenue] = await Promise.all([
+        this.getAdCost(startDate, endDate, filters),
+        this.getPurchaseRevenue(startDate, endDate, filters)
+      ]);
+
+      const roas = adCost > 0 ? purchaseRevenue / adCost : 0;
+      
+      console.log(`getROAS: ${startDate} to ${endDate} = ${roas} (${purchaseRevenue} / ${adCost})`);
+
+      // Cache the result
+      this.cache.set(cacheKey, roas);
+      return roas;
+    } catch (error) {
+      console.error('Error calculating ROAS:', error);
+      return 0;
+    }
+  }
+
+  // Get key events (conversions) count
+  async getKeyEvents(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getKeyEvents', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const request = {
+        property: this.propertyId,
+        dateRanges: [{ startDate, endDate }],
+        metrics: [{ name: 'keyEvents' }],
+        dimensionFilter: this.buildFilterExpression(filters),
+      };
+
+      const response = await this.runReport(request);
+      const row = response.rows?.[0];
+      
+      if (!row || !row.metricValues?.[0]?.value) {
+        console.log(`getKeyEvents: No data found for ${startDate} to ${endDate}`);
+        return 0;
+      }
+
+      const keyEvents = Number(row.metricValues[0].value) || 0;
+      console.log(`getKeyEvents: ${startDate} to ${endDate} = ${keyEvents}`);
+
+      // Cache the result
+      this.cache.set(cacheKey, keyEvents);
+      return keyEvents;
+    } catch (error) {
+      console.error('Error fetching key events:', error);
+      return 0;
+    }
+  }
+
+  // Get ad clicks count
+  async getAdClicks(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getAdClicks', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    try {
+      const request = {
+        property: this.propertyId,
+        dateRanges: [{ startDate, endDate }],
+        metrics: [{ name: 'adClicks' }],
+        dimensionFilter: this.buildFilterExpression(filters),
+      };
+
+      const response = await this.runReport(request);
+      const row = response.rows?.[0];
+      
+      if (!row || !row.metricValues?.[0]?.value) {
+        console.log(`getAdClicks: No data found for ${startDate} to ${endDate}`);
+        return 0;
+      }
+
+      const adClicks = Number(row.metricValues[0].value) || 0;
+      console.log(`getAdClicks: ${startDate} to ${endDate} = ${adClicks}`);
+
+      // Cache the result
+      this.cache.set(cacheKey, adClicks);
+      return adClicks;
+    } catch (error) {
+      console.error('Error fetching ad clicks:', error);
+      return 0;
+    }
+  }
+
+  // Helper method to calculate number of days in date range
+  private getDateRangeDays(startDate: string, endDate: string): number {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end dates
+  }
+
+  // Build filter expression with additional filters
+  private buildFilterExpression(filters?: any, additionalFilters?: any[]) {
+    const expressions: any[] = [];
+
+    // Add existing dimension filters
+    const dimensionFilter = this.buildDimensionFilter(filters);
+    if (dimensionFilter) {
+      if (dimensionFilter.andGroup?.expressions) {
+        expressions.push(...dimensionFilter.andGroup.expressions);
+      } else {
+        expressions.push(dimensionFilter);
+      }
+    }
+
+    // Add additional filters
+    if (additionalFilters) {
+      expressions.push(...additionalFilters);
+    }
+
+    if (expressions.length === 0) return undefined;
+    if (expressions.length === 1) return expressions[0];
+
+    return {
+      andGroup: { expressions }
+    };
   }
 
   // Build dimension filter from query parameters

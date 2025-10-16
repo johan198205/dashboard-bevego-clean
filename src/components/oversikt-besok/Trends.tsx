@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { AnalyticsBlock } from '@/components/ui/analytics-block';
 import { LineChart, BarChart, Line, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { formatNumber, formatPercent, formatDateTooltip } from '@/utils/format';
+import { useFilters } from '@/components/GlobalFilters';
 import type { TimePoint } from '@/app/api/ga4/overview/route';
 
 type Props = {

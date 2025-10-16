@@ -1,8 +1,8 @@
 "use client";
 import { useBusinessKpis } from "@/hooks/useBusinessKpis";
-import { formatNumber, formatPercent } from "@/lib/format";
+import { formatNumber, formatPercent } from "@/utils/format";
 import { ScoreCard } from "@/components/ui/scorecard";
-import { UserIcon, GlobeIcon, TrendingUpIcon, CheckIcon } from "@/assets/icons";
+import { CheckIcon } from "@/assets/icons";
 import {
   Table,
   TableBody,
@@ -76,9 +76,6 @@ export function EfficiencyBlock() {
   };
 
   const conversionRateGrowth = comparisonEfficiency ? getGrowthRate(efficiency.conversionRate, comparisonEfficiency.conversionRate) : 0;
-  const cpaLeadsGrowth = comparisonEfficiency ? getGrowthRate(efficiency.cpaLeads, comparisonEfficiency.cpaLeads) : 0;
-  const cpaCustomersGrowth = comparisonEfficiency ? getGrowthRate(efficiency.cpaCustomers, comparisonEfficiency.cpaCustomers) : 0;
-  const roiGrowth = comparisonEfficiency ? getGrowthRate(efficiency.roi, comparisonEfficiency.roi) : 0;
 
   return (
     <div className="space-y-6">
@@ -99,7 +96,7 @@ export function EfficiencyBlock() {
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
+      {/* KPI Cards Grid - Only conversion rate until Google Ads API is implemented */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="relative">
           <ScoreCard
@@ -114,53 +111,19 @@ export function EfficiencyBlock() {
           />
         </div>
 
-        <div className="relative">
-          <ScoreCard
-            label="CPA för leads"
-            value={`${formatNumber(efficiency.cpaLeads)} SEK`}
-            growthRate={cpaLeadsGrowth}
-            Icon={UserIcon}
-            variant="success"
-            source="GA4 API"
-            className="min-h-[208px]"
-            comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
-          />
-        </div>
-
-        <div className="relative">
-          <ScoreCard
-            label="CPA för kunder"
-            value={`${formatNumber(efficiency.cpaCustomers)} SEK`}
-            growthRate={cpaCustomersGrowth}
-            Icon={GlobeIcon}
-            variant="warning"
-            source="GA4 API"
-            className="min-h-[208px]"
-            comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
-          />
-        </div>
-
-        <div className="relative">
-          <ScoreCard
-            label="ROI"
-            value={`${formatNumber(efficiency.roi)}%`}
-            growthRate={roiGrowth}
-            Icon={TrendingUpIcon}
-            variant="info"
-            source="GA4 API"
-            className="min-h-[208px]"
-            comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
-          />
-        </div>
+        {/* Empty slots to maintain layout until Google Ads API is implemented */}
+        <div></div>
+        <div></div>
+        <div></div>
       </div>
 
       {/* Channel Breakdown Table */}
-      <div id="efficiency-table" className="mt-6" role="region" aria-label="Effektivitet per kanal tabell">
+      <div id="efficiency-table" className="mt-6" role="region" aria-label="Konverteringsgrad per kanal tabell">
         <div className="rounded-lg border border-stroke bg-white shadow-sm dark:border-dark-3 dark:bg-gray-dark">
           <div className="px-6 py-4 border-b border-stroke dark:border-dark-3">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-dark dark:text-white">
-                Effektivitet per kanal
+                Konverteringsgrad per kanal
               </h3>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-dark-5 dark:text-dark-6">Källa: GA4 API</span>
@@ -178,10 +141,10 @@ export function EfficiencyBlock() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-gray-900 dark:text-white font-semibold">Kanal</TableHead>
-                    <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Volym</TableHead>
+                    <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Sessioner</TableHead>
+                    <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Aktiva användare</TableHead>
+                    <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Köp</TableHead>
                     <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Konv. %</TableHead>
-                    <TableHead className="text-right text-gray-900 dark:text-white font-semibold">CPA (SEK)</TableHead>
-                    <TableHead className="text-right text-gray-900 dark:text-white font-semibold">Trend</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -189,7 +152,13 @@ export function EfficiencyBlock() {
                     <TableRow key={channel.channel}>
                       <TableCell className="font-medium">{channel.channel}</TableCell>
                       <TableCell className="text-right">
-                        {formatNumber(channel.leads)}
+                        {formatNumber(channel.sessions)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatNumber(channel.activeUsers)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatNumber(channel.purchases)}
                       </TableCell>
                       <TableCell className="text-right">
                         <StatusPill 
@@ -198,19 +167,6 @@ export function EfficiencyBlock() {
                         >
                           {formatPercent(channel.conversion)}
                         </StatusPill>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {formatNumber(channel.cpa)} SEK
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end">
-                          <div className="h-2 w-8 bg-gray-200 rounded dark:bg-gray-700">
-                            <div 
-                              className="h-full bg-blue-500 rounded"
-                              style={{ width: `${Math.min(100, Math.max(0, channel.conversion * 20))}%` }}
-                            />
-                          </div>
-                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
