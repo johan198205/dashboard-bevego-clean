@@ -121,17 +121,23 @@ export default function FunnelBlock() {
           horizontal: false, // Vertical bars
           borderRadius: 3,
           dataLabels: {
-            position: 'center' // Position session count labels inside bars
+            position: 'top' // show labels above bars
           }
         } 
       },
       xaxis: { 
         categories: steps.map(s => s.key),
         labels: {
+          rotate: -40,
+          rotateAlways: true,
+          trim: false,
+          maxHeight: 120,
+          offsetY: 5,
           style: {
             fontSize: '12px'
           }
-        }
+        },
+        tickPlacement: 'on'
       },
       yaxis: {
         labels: {
@@ -140,12 +146,12 @@ export default function FunnelBlock() {
       },
       dataLabels: { 
         enabled: true,
-        offsetY: -25, // Move labels further above bars
+        offsetY: -18, // Raise labels further above bars for readability
         formatter: (val: number, opts: any) => {
           const dataPointIndex = opts.dataPointIndex;
           const percentage = funnelMetrics.stepPercentages[dataPointIndex];
-          if (percentage !== undefined && dataPointIndex > 0) {
-            return `${Math.round(percentage)}%`;
+          if (percentage !== undefined && dataPointIndex > 0 && val > 0) {
+            return formatPercent(percentage, { decimals: 2, showSign: false });
           }
           return '';
         }, 
@@ -153,12 +159,18 @@ export default function FunnelBlock() {
           colors: ["#111827"], 
           fontSize: "12px", 
           fontWeight: 600
-        } 
+        },
+        background: {
+          enabled: false,
+        }
       },
       colors: ["#E01E26"],
       grid: { 
         borderColor: "#E5E7EB",
-        strokeDashArray: 3
+        strokeDashArray: 3,
+        padding: {
+          bottom: 16
+        }
       },
       tooltip: {
         y: {
@@ -166,7 +178,7 @@ export default function FunnelBlock() {
             const dataPointIndex = opts.dataPointIndex;
             const percentage = funnelMetrics.stepPercentages[dataPointIndex];
             if (percentage !== undefined && dataPointIndex > 0) {
-              return `${formatNumber(val)} sessions (${Math.round(percentage)}%)`;
+              return `${formatNumber(val)} sessions (${formatPercent(percentage, { decimals: 2, showSign: false })})`;
             }
             return `${formatNumber(val)} sessions`;
           }
@@ -231,7 +243,7 @@ export default function FunnelBlock() {
                 {formatNumber(step.value)}
                 {i > 0 && funnelMetrics.stepPercentages[i] > 0 && (
                   <span className="ml-2 text-sm text-gray-500">
-                    ({Math.round(funnelMetrics.stepPercentages[i])}%)
+                    ({formatPercent(funnelMetrics.stepPercentages[i], { decimals: 2, showSign: false })})
                   </span>
                 )}
               </span>
@@ -241,7 +253,7 @@ export default function FunnelBlock() {
           <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700 flex justify-between">
             <span className="font-medium text-gray-900 dark:text-white">Total funnel-CR</span>
             <span className="font-medium text-gray-900 dark:text-white">
-              {formatPercent(funnelMetrics.totalCr)}
+              {formatPercent(funnelMetrics.totalCr, { decimals: 2, showSign: false })}
             </span>
           </div>
           

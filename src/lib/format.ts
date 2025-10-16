@@ -4,9 +4,14 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat(SV).format(Math.round(value));
 }
 
-export function formatPercent(value: number): string {
-  const sign = value > 0 ? '+' : value < 0 ? '' : '';
-  return `${sign}${value.toFixed(2)}%`;
+export function formatPercent(
+  value: number,
+  options?: { decimals?: number; showSign?: boolean }
+): string {
+  const decimals = options?.decimals ?? 2;
+  const showSign = options?.showSign ?? true; // keep existing public behavior
+  const sign = showSign ? (value > 0 ? '+' : value < 0 ? '' : '') : '';
+  return `${sign}${value.toFixed(decimals)}%`;
 }
 
 export function formatDate(date: string | Date, options?: Intl.DateTimeFormatOptions): string {
