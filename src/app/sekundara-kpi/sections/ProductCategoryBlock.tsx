@@ -11,9 +11,17 @@ import { formatNumber, formatPercent } from "@/lib/format";
 const ApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
 type Row = { key: string; value: number; deltaPct?: number };
+type TopItemRow = {
+  name: string;
+  itemsViewed: number;
+  itemsAddedToCart: number;
+  itemsPurchased: number;
+  itemRevenue: number;
+};
 
 export default function ProductCategoryBlock() {
   const { state } = useFilters();
+  const [topItems, setTopItems] = useState<TopItemRow[]>([]);
   const [detailViews, setDetailViews] = useState<Row[]>([]);
   const [requestsByCategory, setRequestsByCategory] = useState<Row[]>([]);
   const [topCategoriesByConv, setTopCategoriesByConv] = useState<Row[]>([]);
@@ -26,23 +34,30 @@ export default function ProductCategoryBlock() {
       try {
         setLoading(true);
         setError(null);
-        // TODO: Replace with real API endpoints/selectors when available
-        // For now, request the generic KPI API with placeholders respecting filters
-        const qs = new URLSearchParams({
+        // Build query once to avoid duplicate requests (memo-like)
+        const params = new URLSearchParams({
           start: state.range.start,
           end: state.range.end,
           grain: state.range.grain,
           comparisonMode: state.range.comparisonMode,
+          channel: state.channel[0] || 'Alla',
+          device: state.device[0] || 'Alla',
         }).toString();
-        const [a, b, c] = await Promise.all([
-          fetch(`/api/kpi?metric=product_detail_views&${qs}`),
-          fetch(`/api/kpi?metric=quote_requests_by_category&${qs}`),
-          fetch(`/api/kpi?metric=top_categories_by_conversions&${qs}`),
+        const [itemsRes, a, b, c] = await Promise.all([
+          fetch(`/api/ga4/top-items?${params}`),
+          fetch(`/api/kpi?metric=product_detail_views&${params}`),
+          fetch(`/api/kpi?metric=quote_requests_by_category&${params}`),
+          fetch(`/api/kpi?metric=top_categories_by_conversions&${params}`),
         ]);
         let ra: any = null, rb: any = null, rc: any = null;
         if (a.ok) ra = await a.json();
         if (b.ok) rb = await b.json();
         if (c.ok) rc = await c.json();
+        let items: TopItemRow[] = [];
+        if (itemsRes.ok) {
+          const j = await itemsRes.json();
+          items = Array.isArray(j.items) ? j.items : [];
+        }
         if (cancelled) return;
 
         // If any response missing, use mock data to render the UI
@@ -70,6 +85,7 @@ export default function ProductCategoryBlock() {
         const rq = (rb?.breakdown || []).slice(0, 10);
         const top = (rc?.breakdown || []).slice(0, 5);
 
+        setTopItems((items || []).slice(0, 10));
         setDetailViews(dv.length ? dv : mockDetail);
         setRequestsByCategory(rq.length ? rq : mockRequests);
         setTopCategoriesByConv(top.length ? top : mockTopConv);
@@ -122,23 +138,27 @@ export default function ProductCategoryBlock() {
     >
       {/* Grid: tables + bar + optional heatmap */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div role="region" aria-label="Produktdetaljvisningar tabell" className="card p-4">
-          <div className="mb-2 text-sm font-medium text-gray-900 dark:text-white">Produktdetaljvisningar</div>
+        <div role="region" aria-label="Topp 10 produkter" className="card p-4">
+          <div className="mb-2 text-sm font-medium text-gray-900 dark:text-white">Produkter — topp 10</div>
           <div className="max-h-80 overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="text-gray-900 dark:text-white font-medium">Produkt/Kategori</TableHead>
-                  <TableHead className="text-right text-gray-900 dark:text-white font-medium">Antal</TableHead>
-                  <TableHead className="text-right text-gray-900 dark:text-white font-medium">Δ</TableHead>
+                  <TableHead className="text-gray-900 dark:text-white font-medium">Produkt</TableHead>
+                  <TableHead className="text-right text-gray-900 dark:text-white font-medium">Produktvisningar</TableHead>
+                  <TableHead className="text-right text-gray-900 dark:text-white font-medium">Varukorg</TableHead>
+                  <TableHead className="text-right text-gray-900 dark:text-white font-medium">Köp</TableHead>
+                  <TableHead className="text-right text-gray-900 dark:text-white font-medium">Totalt värde</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(detailViews || []).map((r) => (
-                  <TableRow key={r.key}>
-                    <TableCell className="text-gray-900 dark:text-white">{r.key}</TableCell>
-                    <TableCell className="text-right text-gray-900 dark:text-white">{formatNumber(r.value)}</TableCell>
-                    <TableCell className="text-right text-gray-900 dark:text-white">{r.deltaPct === undefined ? "–" : formatPercent(r.deltaPct)}</TableCell>
+                {(topItems || []).map((r) => (
+                  <TableRow key={r.name}>
+                    <TableCell className="text-gray-900 dark:text-white">{r.name}</TableCell>
+                    <TableCell className="text-right text-gray-900 dark:text-white">{formatNumber(r.itemsViewed || 0)}</TableCell>
+                    <TableCell className="text-right text-gray-900 dark:text-white">{formatNumber(r.itemsAddedToCart || 0)}</TableCell>
+                    <TableCell className="text-right text-gray-900 dark:text-white">{formatNumber(r.itemsPurchased || 0)}</TableCell>
+                    <TableCell className="text-right text-gray-900 dark:text-white">{new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 2 }).format(r.itemRevenue || 0)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

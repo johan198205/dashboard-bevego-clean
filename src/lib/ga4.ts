@@ -594,6 +594,47 @@ export class GA4Client {
     });
   }
 
+  // Get top products/items with GA4 ecommerce item metrics
+  async getTopItems(startDate: string, endDate: string, filters?: any) {
+    const cacheKey = this.cache.generateKey('getTopItems', { startDate, endDate, filters });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: 'itemName' }],
+      // Metric mapping note: GA4 Data API metric names
+      // itemsViewed -> itemsViewed
+      // itemsAddedToCart -> itemsAddedToCart
+      // itemsPurchased -> itemsPurchased
+      // itemRevenue -> itemRevenue
+      metrics: [
+        { name: 'itemsViewed' },
+        { name: 'itemsAddedToCart' },
+        { name: 'itemsPurchased' },
+        { name: 'itemRevenue' },
+      ],
+      dimensionFilter: this.buildFilterExpression(filters),
+      // Sortering: högst värde överst
+      orderBys: [{ metric: { metricName: 'itemRevenue' }, desc: true }],
+      limit: 10,
+    } as any;
+
+    const response = await this.runReport(request);
+    const rows = response.rows || [];
+    const items = rows.map((row: any) => ({
+      name: row.dimensionValues?.[0]?.value || 'Okänd produkt',
+      itemsViewed: Number(row.metricValues?.[0]?.value || 0),
+      itemsAddedToCart: Number(row.metricValues?.[1]?.value || 0),
+      itemsPurchased: Number(row.metricValues?.[2]?.value || 0),
+      itemRevenue: Number(row.metricValues?.[3]?.value || 0),
+    }));
+
+    this.cache.set(cacheKey, items);
+    return items;
+  }
+
   // Get top referrers (pageReferrer - actual URLs)
   async getTopReferrers(startDate: string, endDate: string, filters?: any) {
     const request = {
