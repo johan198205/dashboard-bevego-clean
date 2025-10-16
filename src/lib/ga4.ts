@@ -406,7 +406,7 @@ export class GA4Client {
     });
   }
 
-  // Get channel breakdown with sessions, activeUsers, and purchases for efficiency table
+  // Get channel breakdown with sessions, purchases, and conversion rates for traffic sources section
   async getChannelBreakdownWithMetrics(startDate: string, endDate: string, filters?: any) {
     // Check cache first
     const cacheKey = this.cache.generateKey('getChannelBreakdownWithMetrics', { startDate, endDate, filters });
@@ -417,20 +417,19 @@ export class GA4Client {
     }
 
     try {
-      // Get sessions and activeUsers per channel
+      // Get sessions per channel
       const sessionsRequest = {
         property: this.propertyId,
         dateRanges: [{ startDate, endDate }],
         dimensions: [{ name: 'sessionDefaultChannelGroup' }],
         metrics: [
-          { name: 'sessions' },
-          { name: 'activeUsers' }
+          { name: 'sessions' }
         ],
         dimensionFilter: this.buildDimensionFilter(filters),
         orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
       };
 
-      // Get purchases per channel (with purchase filter)
+      // Get purchases per channel (Konverteringar = purchase events)
       const purchasesRequest = {
         property: this.propertyId,
         dateRanges: [{ startDate, endDate }],
@@ -459,8 +458,7 @@ export class GA4Client {
       sessionsResponse.rows?.forEach((row: any) => {
         const channel = row.dimensionValues?.[0]?.value || 'Unknown';
         const sessions = Number(row.metricValues?.[0]?.value || 0);
-        const activeUsers = Number(row.metricValues?.[1]?.value || 0);
-        sessionsMap.set(channel, { sessions, activeUsers });
+        sessionsMap.set(channel, sessions);
       });
 
       purchasesResponse.rows?.forEach((row: any) => {
@@ -469,20 +467,22 @@ export class GA4Client {
         purchasesMap.set(channel, purchases);
       });
 
-      // Combine data and sort by purchases (descending)
+      // Combine data and sort by sessions (descending) for top 5 channels
       const result = Array.from(sessionsMap.keys()).map(channel => {
-        const sessionData = sessionsMap.get(channel) || { sessions: 0, activeUsers: 0 };
+        const sessions = sessionsMap.get(channel) || 0;
         const purchases = purchasesMap.get(channel) || 0;
+        
+        // Calculate session conversion rate: purchase events / sessions * 100
+        const sessionConversionRate = sessions > 0 ? (purchases / sessions) * 100 : 0;
 
         return {
           channel,
-          sessions: sessionData.sessions,
-          activeUsers: sessionData.activeUsers,
-          purchases
+          sessions,
+          purchases,
+          sessionConversionRate
         };
-      }).sort((a, b) => b.purchases - a.purchases); // Sort by purchases descending
+      }).sort((a, b) => b.sessions - a.sessions); // Sort by sessions descending for top 5 channels
 
-      // Cache the result
       this.cache.set(cacheKey, result);
       return result;
     } catch (error) {

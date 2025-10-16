@@ -7,7 +7,14 @@ import { useFilters } from "@/components/GlobalFilters";
 import { useEffect, useMemo, useState } from "react";
 import { formatNumber, formatPercent } from "@/lib/format";
 
-type ChannelRow = { key: string; sessions: number; conversions?: number; deltaPct?: number; spark?: number[] };
+type ChannelRow = { 
+  key: string; 
+  sessions: number; 
+  conversions?: number; // Konverteringar = purchase events
+  conversionRate?: number; // Konverteringsgrad = session conversion rate
+  deltaPct?: number; 
+  spark?: number[] 
+};
 
 export default function ChannelsBlock() {
   const { state } = useFilters();
@@ -23,45 +30,69 @@ export default function ChannelsBlock() {
       try {
         setLoading(true);
         setError(null);
+        
+        // Build query parameters for traffic sources API
         const qs = new URLSearchParams({
           start: state.range.start,
           end: state.range.end,
-          grain: state.range.grain,
-          comparisonMode: state.range.comparisonMode,
-        }).toString();
-        const [overview, newUsersResp, searchResp] = await Promise.all([
-          fetch(`/api/ga4/overview?${qs}`),
+        });
+        
+        // Add device filter if not 'all'
+        if (state.device.length > 0 && !state.device.includes('all')) {
+          qs.set('device', state.device.join(','));
+        }
+        
+        // Add channel filter if not 'all' 
+        if (state.channel.length > 0 && !state.channel.includes('all')) {
+          qs.set('channel', state.channel.join(','));
+        }
+        
+        // Fetch traffic sources data and other KPIs
+        const [trafficSourcesResp, newUsersResp, searchResp] = await Promise.all([
+          fetch(`/api/ga4/traffic-sources?${qs}`),
           fetch(`/api/kpi?metric=new_users&${qs}`),
           fetch(`/api/kpi?metric=internal_search_usage&${qs}`),
         ]);
-        let ov: any = null;
-        if (overview.ok) ov = await overview.json();
+        
         if (cancelled) return;
-        const mockChannels: ChannelRow[] = [
-          { key: "Organic Search", sessions: 4200, conversions: 210, deltaPct: 3.2 },
-          { key: "Direct", sessions: 2800, conversions: 150, deltaPct: -1.1 },
-          { key: "Referral", sessions: 1200, conversions: 70, deltaPct: 2.5 },
-          { key: "Email", sessions: 900, conversions: 60, deltaPct: 0.5 },
-          { key: "Paid Search", sessions: 700, conversions: 55, deltaPct: 4.1 },
-        ];
-        const ch = (ov?.channels || [])
-          .map((c: any) => ({ key: c.key, sessions: c.sessions, conversions: c.conversions, deltaPct: c.engagementRatePct }))
-          .sort((a: any, b: any) => (b.sessions || 0) - (a.sessions || 0))
-          .slice(0, 5);
-        setChannels(ch.length ? ch : mockChannels);
+        
+        let trafficSourcesData: any = null;
+        if (trafficSourcesResp.ok) {
+          trafficSourcesData = await trafficSourcesResp.json();
+        }
+        
+        // Transform traffic sources data to ChannelRow format
+        const transformedChannels: ChannelRow[] = trafficSourcesData?.channels?.map((c: any) => ({
+          key: c.channel,
+          sessions: c.sessions,
+          conversions: c.purchases, // Konverteringar = purchase events
+          conversionRate: c.sessionConversionRate, // Konverteringsgrad = session conversion rate
+          deltaPct: 0 // No comparison data for now
+        })) || [];
+        
+        setChannels(transformedChannels);
+        
+        // Get other KPIs
         const nu = (await newUsersResp.json())?.summary?.current ?? null;
         const is = (await searchResp.json())?.summary?.current ?? null;
         setNewUsers(nu ?? 860);
         setInternalSearch(is ?? 340);
-        if (!ov) setError("Visar mockdata – koppla till GA4 overview/API.");
+        
+        if (trafficSourcesData?.error) {
+          setError(trafficSourcesData.error);
+        }
+        
         setLoading(false);
       } catch (e: any) {
         if (!cancelled) {
           setError("Visar mockdata – " + (e?.message || "Kunde inte ladda data"));
+          // Fallback mock data with realistic conversion rates
           setChannels([
-            { key: "Organic Search", sessions: 4200, conversions: 210, deltaPct: 3.2 },
-            { key: "Direct", sessions: 2800, conversions: 150, deltaPct: -1.1 },
-            { key: "Referral", sessions: 1200, conversions: 70, deltaPct: 2.5 },
+            { key: "Organic Search", sessions: 13921, conversions: 139, conversionRate: 1.00 },
+            { key: "Direct", sessions: 7083, conversions: 152, conversionRate: 2.15 },
+            { key: "Paid Search", sessions: 4162, conversions: 69, conversionRate: 1.66 },
+            { key: "Referral", sessions: 1281, conversions: 2, conversionRate: 0.16 },
+            { key: "Paid Social", sessions: 1004, conversions: 0, conversionRate: 0.00 },
           ]);
           setNewUsers(860);
           setInternalSearch(340);
@@ -83,7 +114,21 @@ export default function ChannelsBlock() {
     >
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Donut via existing Distributions component */}
-        <Distributions title="Topp 5 kanaler" data={(channels as any[]).map(c => ({ key: c.key, sessions: c.sessions, engagementRatePct: 0 }))} type="channel" totalSessions={totalSessions} hideTable />
+        <Distributions 
+          title="Topp 5 kanaler" 
+          data={channels.map(c => ({ 
+            key: c.key, 
+            sessions: c.sessions, 
+            users: 0, 
+            avgSessionDuration: 0, 
+            bounceRate: 0, 
+            engagementRatePct: 0,
+            comparisonPct: c.deltaPct
+          }))} 
+          type="channel" 
+          totalSessions={totalSessions} 
+          hideTable 
+        />
 
         {/* Sortable table */}
         <div className="card p-4">
@@ -104,7 +149,7 @@ export default function ChannelsBlock() {
                     <TableCell>{r.key}</TableCell>
                     <TableCell className="text-right">{formatNumber(r.sessions)}</TableCell>
                     <TableCell className="text-right">{r.conversions == null ? "–" : formatNumber(r.conversions)}</TableCell>
-                    <TableCell className="text-right">{r.conversions != null && r.sessions ? formatPercent((r.conversions / r.sessions) * 100) : "–"}</TableCell>
+                    <TableCell className="text-right">{r.conversionRate != null ? formatPercent(r.conversionRate) : "–"}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

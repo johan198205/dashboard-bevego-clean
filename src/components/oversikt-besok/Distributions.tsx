@@ -81,6 +81,7 @@ export function Distributions({ title, data, type, totalSessions, onClick, hideT
         name: 'Övrigt',
         color: COLORS[4],
         engagementRatePct: others.length > 0 ? others.reduce((sum, item) => sum + (item.engagementRatePct || 0), 0) / others.length : 0,
+        comparisonPct: others.length > 0 ? others.reduce((sum, item) => sum + (item.comparisonPct || 0), 0) / others.length : undefined,
       }] : [])
     ];
   } else {
