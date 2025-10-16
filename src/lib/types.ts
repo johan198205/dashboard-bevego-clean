@@ -26,7 +26,7 @@ export type Filters = {
 };
 
 export type Params = {
-  metric: 'mau' | 'pageviews' | 'tasks' | 'features' | 'ndi' | 'perf' | 'users' | 'tasks_rate' | 'features_rate' | 'cwv_total' | 'sessions' | 'engagedSessions' | 'engagementRate' | 'avgEngagementTime';
+  metric: 'mau' | 'pageviews' | 'tasks' | 'features' | 'ndi' | 'perf' | 'users' | 'tasks_rate' | 'features_rate' | 'cwv_total' | 'sessions' | 'engagedSessions' | 'engagementRate' | 'avgEngagementTime' | 'session_start' | 'alla_sessions' | 'view_item_list' | 'kategorisidor' | 'product_views' | 'view_item' | 'add_to_cart' | 'begin_checkout' | 'purchases';
   range: {
     start: string;
     end: string;

@@ -17,16 +17,17 @@ export default function SekundaraKpiPage() {
         </p>
       </header>
 
-      <section aria-labelledby="product-category-heading" aria-describedby="product-category-description">
-        <ProductCategoryBlock />
-      </section>
-
+      {/* Render order updated to: Funnel → Channels → ProductCategory → Engagement */}
       <section aria-labelledby="funnel-heading" aria-describedby="funnel-description">
         <FunnelBlock />
       </section>
 
       <section aria-labelledby="channels-heading" aria-describedby="channels-description">
         <ChannelsBlock />
+      </section>
+
+      <section aria-labelledby="product-category-heading" aria-describedby="product-category-description">
+        <ProductCategoryBlock />
       </section>
 
       <section aria-labelledby="engagement-heading" aria-describedby="engagement-description">

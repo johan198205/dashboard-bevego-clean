@@ -1091,6 +1091,427 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
     };
   }
 
+  // Funnel events - session_start, view_item_list, view_item, add_to_cart, begin_checkout, purchases
+  if (metric === "session_start" || metric === "alla_sessions") {
+    const propertyId = process.env.GA4_PROPERTY_ID;
+    
+    async function queryGa4AllSessions(rangeInput: { start: string; end: string }) {
+      const isServer = typeof window === "undefined";
+      if (!isServer) throw new Error("GA4 client can only run on server");
+      
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { BetaAnalyticsDataClient } = (eval('require'))("@google-analytics/data");
+      const client = new BetaAnalyticsDataClient();
+      
+      // For "Alla sessions" we just count total sessions, no event filter needed
+      const expressions: any[] = [
+        {
+          filter: {
+            fieldName: 'hostName',
+            stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' }
+          }
+        }
+      ];
+      
+      const [resp] = await client.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [{ startDate: rangeInput.start, endDate: rangeInput.end }],
+        metrics: [{ name: 'sessions' }],
+        dimensionFilter: { andGroup: { expressions } },
+      });
+      
+      const count = Number(resp.rows?.[0]?.metricValues?.[0]?.value || 0);
+      return count;
+    }
+
+    try {
+      const isServer = typeof window === "undefined";
+      if (propertyId && isServer) {
+        const current = await queryGa4AllSessions({ start: range.start, end: range.end });
+        const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+        const prev = prevRange ? await queryGa4AllSessions(prevRange) : 0;
+        const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+        
+        return {
+          meta: { source: "ga4", metric: "session_start", dims: [] },
+          summary: { current, prev, yoyPct },
+          timeseries: [{ date: range.start, value: current }],
+          notes: ["Källa: GA4 API (total sessions)"]
+        };
+      }
+    } catch (err) {
+      console.error("GA4 all sessions query failed:", (err as any)?.message || err || "Unknown error");
+    }
+    
+    // Mock fallback
+    const current = Math.round(27709 * scale);
+    const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+    const prev = prevRange ? Math.round(25000 * scale) : 0;
+    const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+    
+    return {
+      meta: { source: "mock", metric: "session_start", dims: [] },
+      summary: { current, prev, yoyPct },
+      timeseries: [{ date: range.start, value: current }],
+      notes: ["Källa: Mockdata (total sessions)"]
+    };
+  }
+
+  if (metric === "view_item_list" || metric === "kategorisidor") {
+    const propertyId = process.env.GA4_PROPERTY_ID;
+    
+    async function queryGa4ViewItemListSessions(rangeInput: { start: string; end: string }) {
+      const isServer = typeof window === "undefined";
+      if (!isServer) throw new Error("GA4 client can only run on server");
+      
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { BetaAnalyticsDataClient } = (eval('require'))("@google-analytics/data");
+      const client = new BetaAnalyticsDataClient();
+      
+      // Count sessions that had view_item_list events (not the events themselves)
+      const expressions: any[] = [
+        {
+          filter: {
+            fieldName: 'hostName',
+            stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' }
+          }
+        },
+        {
+          filter: {
+            fieldName: 'eventName',
+            stringFilter: { matchType: 'EXACT', value: 'view_item_list' }
+          }
+        }
+      ];
+      
+      const [resp] = await client.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [{ startDate: rangeInput.start, endDate: rangeInput.end }],
+        metrics: [{ name: 'sessions' }],
+        dimensionFilter: { andGroup: { expressions } },
+      });
+      
+      const count = Number(resp.rows?.[0]?.metricValues?.[0]?.value || 0);
+      return count;
+    }
+
+    try {
+      const isServer = typeof window === "undefined";
+      if (propertyId && isServer) {
+        const current = await queryGa4ViewItemListSessions({ start: range.start, end: range.end });
+        const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+        const prev = prevRange ? await queryGa4ViewItemListSessions(prevRange) : 0;
+        const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+        
+        return {
+          meta: { source: "ga4", metric: "view_item_list", dims: [] },
+          summary: { current, prev, yoyPct },
+          timeseries: [{ date: range.start, value: current }],
+          notes: ["Källa: GA4 API (sessions with view_item_list)"]
+        };
+      }
+    } catch (err) {
+      console.error("GA4 view_item_list sessions query failed:", (err as any)?.message || err || "Unknown error");
+    }
+    
+    // Mock fallback - sessions that viewed category pages
+    const current = Math.round(22718 * scale);
+    const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+    const prev = prevRange ? Math.round(100000 * scale) : 0;
+    const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+    
+    return {
+      meta: { source: "mock", metric: "view_item_list", dims: [] },
+      summary: { current, prev, yoyPct },
+      timeseries: [{ date: range.start, value: current }],
+      notes: ["Källa: Mockdata (sessions with view_item_list)"]
+    };
+  }
+
+  if (metric === "product_views" || metric === "view_item") {
+    const propertyId = process.env.GA4_PROPERTY_ID;
+    
+    async function queryGa4ViewItemSessions(rangeInput: { start: string; end: string }) {
+      const isServer = typeof window === "undefined";
+      if (!isServer) throw new Error("GA4 client can only run on server");
+      
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { BetaAnalyticsDataClient } = (eval('require'))("@google-analytics/data");
+      const client = new BetaAnalyticsDataClient();
+      
+      // Count sessions that had view_item events (not the events themselves)
+      const expressions: any[] = [
+        {
+          filter: {
+            fieldName: 'hostName',
+            stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' }
+          }
+        },
+        {
+          filter: {
+            fieldName: 'eventName',
+            stringFilter: { matchType: 'EXACT', value: 'view_item' }
+          }
+        }
+      ];
+      
+      const [resp] = await client.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [{ startDate: rangeInput.start, endDate: rangeInput.end }],
+        metrics: [{ name: 'sessions' }],
+        dimensionFilter: { andGroup: { expressions } },
+      });
+      
+      const count = Number(resp.rows?.[0]?.metricValues?.[0]?.value || 0);
+      return count;
+    }
+
+    try {
+      const isServer = typeof window === "undefined";
+      if (propertyId && isServer) {
+        const current = await queryGa4ViewItemSessions({ start: range.start, end: range.end });
+        const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+        const prev = prevRange ? await queryGa4ViewItemSessions(prevRange) : 0;
+        const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+        
+        return {
+          meta: { source: "ga4", metric: "product_views", dims: [] },
+          summary: { current, prev, yoyPct },
+          timeseries: [{ date: range.start, value: current }],
+          notes: ["Källa: GA4 API (sessions with view_item)"]
+        };
+      }
+    } catch (err) {
+      console.error("GA4 view_item sessions query failed:", (err as any)?.message || err || "Unknown error");
+    }
+    
+    // Mock fallback - sessions that viewed products
+    const current = Math.round(13676 * scale);
+    const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+    const prev = prevRange ? Math.round(32000 * scale) : 0;
+    const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+    
+    return {
+      meta: { source: "mock", metric: "product_views", dims: [] },
+      summary: { current, prev, yoyPct },
+      timeseries: [{ date: range.start, value: current }],
+      notes: ["Källa: Mockdata (sessions with view_item)"]
+    };
+  }
+
+  if (metric === "add_to_cart") {
+    const propertyId = process.env.GA4_PROPERTY_ID;
+    
+    async function queryGa4AddToCartSessions(rangeInput: { start: string; end: string }) {
+      const isServer = typeof window === "undefined";
+      if (!isServer) throw new Error("GA4 client can only run on server");
+      
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { BetaAnalyticsDataClient } = (eval('require'))("@google-analytics/data");
+      const client = new BetaAnalyticsDataClient();
+      
+      // Count sessions that had add_to_cart events (not the events themselves)
+      const expressions: any[] = [
+        {
+          filter: {
+            fieldName: 'hostName',
+            stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' }
+          }
+        },
+        {
+          filter: {
+            fieldName: 'eventName',
+            stringFilter: { matchType: 'EXACT', value: 'add_to_cart' }
+          }
+        }
+      ];
+      
+      const [resp] = await client.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [{ startDate: rangeInput.start, endDate: rangeInput.end }],
+        metrics: [{ name: 'sessions' }],
+        dimensionFilter: { andGroup: { expressions } },
+      });
+      
+      const count = Number(resp.rows?.[0]?.metricValues?.[0]?.value || 0);
+      return count;
+    }
+
+    try {
+      const isServer = typeof window === "undefined";
+      if (propertyId && isServer) {
+        const current = await queryGa4AddToCartSessions({ start: range.start, end: range.end });
+        const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+        const prev = prevRange ? await queryGa4AddToCartSessions(prevRange) : 0;
+        const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+        
+        return {
+          meta: { source: "ga4", metric: "add_to_cart", dims: [] },
+          summary: { current, prev, yoyPct },
+          timeseries: [{ date: range.start, value: current }],
+          notes: ["Källa: GA4 API (sessions with add_to_cart)"]
+        };
+      }
+    } catch (err) {
+      console.error("GA4 add_to_cart sessions query failed:", (err as any)?.message || err || "Unknown error");
+    }
+    
+    // Mock fallback - sessions that added to cart
+    const current = Math.round(894 * scale);
+    const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+    const prev = prevRange ? Math.round(3800 * scale) : 0;
+    const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+    
+    return {
+      meta: { source: "mock", metric: "add_to_cart", dims: [] },
+      summary: { current, prev, yoyPct },
+      timeseries: [{ date: range.start, value: current }],
+      notes: ["Källa: Mockdata (sessions with add_to_cart)"]
+    };
+  }
+
+  if (metric === "begin_checkout") {
+    const propertyId = process.env.GA4_PROPERTY_ID;
+    
+    async function queryGa4BeginCheckoutSessions(rangeInput: { start: string; end: string }) {
+      const isServer = typeof window === "undefined";
+      if (!isServer) throw new Error("GA4 client can only run on server");
+      
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { BetaAnalyticsDataClient } = (eval('require'))("@google-analytics/data");
+      const client = new BetaAnalyticsDataClient();
+      
+      // Count sessions that had begin_checkout events (not the events themselves)
+      const expressions: any[] = [
+        {
+          filter: {
+            fieldName: 'hostName',
+            stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' }
+          }
+        },
+        {
+          filter: {
+            fieldName: 'eventName',
+            stringFilter: { matchType: 'EXACT', value: 'begin_checkout' }
+          }
+        }
+      ];
+      
+      const [resp] = await client.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [{ startDate: rangeInput.start, endDate: rangeInput.end }],
+        metrics: [{ name: 'sessions' }],
+        dimensionFilter: { andGroup: { expressions } },
+      });
+      
+      const count = Number(resp.rows?.[0]?.metricValues?.[0]?.value || 0);
+      return count;
+    }
+
+    try {
+      const isServer = typeof window === "undefined";
+      if (propertyId && isServer) {
+        const current = await queryGa4BeginCheckoutSessions({ start: range.start, end: range.end });
+        const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+        const prev = prevRange ? await queryGa4BeginCheckoutSessions(prevRange) : 0;
+        const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+        
+        return {
+          meta: { source: "ga4", metric: "begin_checkout", dims: [] },
+          summary: { current, prev, yoyPct },
+          timeseries: [{ date: range.start, value: current }],
+          notes: ["Källa: GA4 API (sessions with begin_checkout)"]
+        };
+      }
+    } catch (err) {
+      console.error("GA4 begin_checkout sessions query failed:", (err as any)?.message || err || "Unknown error");
+    }
+    
+    // Mock fallback - sessions that began checkout
+    const current = Math.round(885 * scale);
+    const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+    const prev = prevRange ? Math.round(1400 * scale) : 0;
+    const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+    
+    return {
+      meta: { source: "mock", metric: "begin_checkout", dims: [] },
+      summary: { current, prev, yoyPct },
+      timeseries: [{ date: range.start, value: current }],
+      notes: ["Källa: Mockdata (sessions with begin_checkout)"]
+    };
+  }
+
+  if (metric === "purchases") {
+    const propertyId = process.env.GA4_PROPERTY_ID;
+    
+    async function queryGa4PurchaseSessions(rangeInput: { start: string; end: string }) {
+      const isServer = typeof window === "undefined";
+      if (!isServer) throw new Error("GA4 client can only run on server");
+      
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { BetaAnalyticsDataClient } = (eval('require'))("@google-analytics/data");
+      const client = new BetaAnalyticsDataClient();
+      
+      // Count sessions that had purchase events (not the events themselves)
+      const expressions: any[] = [
+        {
+          filter: {
+            fieldName: 'hostName',
+            stringFilter: { matchType: 'EXACT', value: 'www.bevego.se' }
+          }
+        },
+        {
+          filter: {
+            fieldName: 'eventName',
+            stringFilter: { matchType: 'EXACT', value: 'purchase' }
+          }
+        }
+      ];
+      
+      const [resp] = await client.runReport({
+        property: `properties/${propertyId}`,
+        dateRanges: [{ startDate: rangeInput.start, endDate: rangeInput.end }],
+        metrics: [{ name: 'sessions' }],
+        dimensionFilter: { andGroup: { expressions } },
+      });
+      
+      const count = Number(resp.rows?.[0]?.metricValues?.[0]?.value || 0);
+      return count;
+    }
+
+    try {
+      const isServer = typeof window === "undefined";
+      if (propertyId && isServer) {
+        const current = await queryGa4PurchaseSessions({ start: range.start, end: range.end });
+        const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+        const prev = prevRange ? await queryGa4PurchaseSessions(prevRange) : 0;
+        const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+        
+        return {
+          meta: { source: "ga4", metric: "purchases", dims: [] },
+          summary: { current, prev, yoyPct },
+          timeseries: [{ date: range.start, value: current }],
+          notes: ["Källa: GA4 API (sessions with purchase)"]
+        };
+      }
+    } catch (err) {
+      console.error("GA4 purchase sessions query failed:", (err as any)?.message || err || "Unknown error");
+    }
+    
+    // Mock fallback - sessions that completed purchase
+    const current = Math.round(333 * scale);
+    const prevRange = comparisonMode === 'yoy' ? previousYoyRange(range) : comparisonMode === 'prev' ? previousPeriodRange(range) : null;
+    const prev = prevRange ? Math.round(330 * scale) : 0;
+    const yoyPct = prev ? ((current - prev) / Math.abs(prev)) * 100 : 0;
+    
+    return {
+      meta: { source: "mock", metric: "purchases", dims: [] },
+      summary: { current, prev, yoyPct },
+      timeseries: [{ date: range.start, value: current }],
+      notes: ["Källa: Mockdata (sessions with purchase)"]
+    };
+  }
+
   // Fallback
   return {
     meta: { source: "mock", metric, dims: [] },
