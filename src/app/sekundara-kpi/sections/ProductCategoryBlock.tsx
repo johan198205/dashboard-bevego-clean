@@ -10,6 +10,9 @@ import { formatNumber, formatPercent } from "@/lib/format";
 // Avoid SSR issues
 const ApexChart = dynamic(() => import("react-apexcharts"), { ssr: false });
 
+// TODO: Aktivera när GA4-offertdata finns
+const OFFERT_PER_CATEGORY_DISABLED = true;
+
 type Row = { key: string; value: number; deltaPct?: number };
 type TopItemRow = {
   name: string;
@@ -43,15 +46,15 @@ export default function ProductCategoryBlock() {
           channel: state.channel[0] || 'Alla',
           device: state.device[0] || 'Alla',
         }).toString();
-        const [itemsRes, a, b, c] = await Promise.all([
+        const [itemsRes, a, bMaybe, c] = await Promise.all([
           fetch(`/api/ga4/top-items?${params}`),
           fetch(`/api/kpi?metric=product_detail_views&${params}`),
-          fetch(`/api/kpi?metric=quote_requests_by_category&${params}`),
+          OFFERT_PER_CATEGORY_DISABLED ? Promise.resolve(null) : fetch(`/api/kpi?metric=quote_requests_by_category&${params}`),
           fetch(`/api/kpi?metric=top_categories_by_conversions&${params}`),
         ]);
         let ra: any = null, rb: any = null, rc: any = null;
         if (a.ok) ra = await a.json();
-        if (b.ok) rb = await b.json();
+        if (bMaybe && (bMaybe as Response).ok) rb = await (bMaybe as Response).json();
         if (c.ok) rc = await c.json();
         let items: TopItemRow[] = [];
         if (itemsRes.ok) {
@@ -82,12 +85,12 @@ export default function ProductCategoryBlock() {
         ];
 
         const dv = (ra?.breakdown || []).slice(0, 10);
-        const rq = (rb?.breakdown || []).slice(0, 10);
+        const rq = OFFERT_PER_CATEGORY_DISABLED ? [] : (rb?.breakdown || []).slice(0, 10);
         const top = (rc?.breakdown || []).slice(0, 5);
 
         setTopItems((items || []).slice(0, 10));
         setDetailViews(dv.length ? dv : mockDetail);
-        setRequestsByCategory(rq.length ? rq : mockRequests);
+        setRequestsByCategory(rq.length ? rq : (OFFERT_PER_CATEGORY_DISABLED ? [] : mockRequests));
         setTopCategoriesByConv(top.length ? top : mockTopConv);
         if (!ra || !rb || !rc) setError("Visar mockdata – koppla till riktig datakälla när klar.");
         setLoading(false);
@@ -139,7 +142,7 @@ export default function ProductCategoryBlock() {
       {/* Grid: tables + bar + optional heatmap */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div role="region" aria-label="Topp 10 produkter" className="card p-4">
-          <div className="mb-2 text-sm font-medium text-gray-900 dark:text-white">Produkter — topp 10</div>
+          <div className="mb-2 text-sm text-base font-medium text-gray-900 dark:text-white">Produkter — topp 10</div>
           <div className="max-h-80 overflow-auto">
             <Table>
               <TableHeader>
@@ -168,36 +171,45 @@ export default function ProductCategoryBlock() {
           {error && <div className="mt-2 text-xs text-red-600">{error}</div>}
         </div>
 
-        <div role="region" aria-label="Offertförfrågningar per kategori tabell" className="card p-4">
-          <div className="mb-2 text-sm font-medium text-gray-900 dark:text-white">Offertförfrågningar per kategori</div>
-          <div className="max-h-80 overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-gray-900 dark:text-white font-medium">Kategori</TableHead>
-                  <TableHead className="text-right text-gray-900 dark:text-white font-medium">Antal</TableHead>
-                  <TableHead className="text-right text-gray-900 dark:text-white font-medium">Δ</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {(requestsByCategory || []).map((r) => (
-                  <TableRow key={r.key}>
-                    <TableCell className="text-gray-900 dark:text-white">{r.key}</TableCell>
-                    <TableCell className="text-right text-gray-900 dark:text-white">{formatNumber(r.value)}</TableCell>
-                    <TableCell className="text-right text-gray-900 dark:text-white">{r.deltaPct === undefined ? "–" : formatPercent(r.deltaPct)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+        {OFFERT_PER_CATEGORY_DISABLED ? (
+          <div role="region" aria-label="Offertförfrågningar per kategori tabell" className="card p-4 opacity-50 grayscale pointer-events-none">
+            <div className="mb-2 text-sm text-base font-medium text-gray-900 dark:text-white">Offertförfrågningar per kategori</div>
+            <div className="h-24 flex items-center justify-center">
+              <span className="text-3xl font-semibold text-gray-400">No data</span>
+            </div>
           </div>
-          {loading && <div className="mt-2 text-xs text-gray-500">Laddar…</div>}
-          {error && <div className="mt-2 text-xs text-red-600">{error}</div>}
-        </div>
+        ) : (
+          <div role="region" aria-label="Offertförfrågningar per kategori tabell" className="card p-4">
+            <div className="mb-2 text-sm text-base font-medium text-gray-900 dark:text-white">Offertförfrågningar per kategori</div>
+            <div className="max-h-80 overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-gray-900 dark:text-white font-medium">Kategori</TableHead>
+                    <TableHead className="text-right text-gray-900 dark:text-white font-medium">Antal</TableHead>
+                    <TableHead className="text-right text-gray-900 dark:text-white font-medium">Δ</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(requestsByCategory || []).map((r) => (
+                    <TableRow key={r.key}>
+                      <TableCell className="text-gray-900 dark:text-white">{r.key}</TableCell>
+                      <TableCell className="text-right text-gray-900 dark:text-white">{formatNumber(r.value)}</TableCell>
+                      <TableCell className="text-right text-gray-900 dark:text-white">{r.deltaPct === undefined ? "–" : formatPercent(r.deltaPct)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {loading && <div className="mt-2 text-xs text-gray-500">Laddar…</div>}
+            {error && <div className="mt-2 text-xs text-red-600">{error}</div>}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6">
         <div role="img" aria-label="Topp 5 kategorier efter konverteringar stapeldiagram" className="card p-4">
-          <div className="mb-2 text-sm font-medium text-gray-900 dark:text-white">Topp 5 produktkategorier efter konverteringar</div>
+          <div className="mb-2 text-sm text-base font-medium text-gray-900 dark:text-white">Topp 5 produktkategorier efter konverteringar</div>
           {topCategoriesByConv.length > 0 ? (
             <ApexChart options={barOptions as any} series={barSeries as any} type="bar" height={320} />
           ) : (

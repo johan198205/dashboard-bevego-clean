@@ -21,7 +21,7 @@ body {
 }
 
 .title {
-  @apply text-sm font-medium text-gray-700 dark:text-dark-6;
+  @apply text-base font-bold text-gray-700 dark:text-dark-6;
 }
 
 .value {
@@ -33,4 +33,14 @@ body {
   @apply h-12 flex items-center gap-2;
 }
 
+
+/* Overrides per request: unify small text and medium weight across app */
+.text-sm {
+  font-size: 0.85rem;
+  line-height: 1.25rem;
+}
+
+.font-medium {
+  font-weight: 500;
+}
 
