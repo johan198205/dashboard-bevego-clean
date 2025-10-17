@@ -133,7 +133,7 @@ export default function ChannelsBlock() {
 
         {/* Sortable table */}
         <div className="card p-4">
-          <div className="mb-2 text-sm font-medium text-gray-900 dark:text-white">Topp 5 kanaler</div>
+          <div className="mb-2 text-base font-bold text-gray-900 dark:text-white">Topp 5 kanaler</div>
           <div className="max-h-80 overflow-auto">
             <Table>
               <TableHeader>
@@ -170,7 +170,7 @@ export default function ChannelsBlock() {
             </Table>
           </div>
           {loading && <div className="mt-2 text-xs text-gray-500">Laddar…</div>}
-          {error && <div className="mt-2 text-xs text-red-600">{error}</div>}
+          {/* Error note removed per request */}
         </div>
       </div>
       {/* Removed right-side KPI cards per request */}

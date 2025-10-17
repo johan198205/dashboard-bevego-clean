@@ -158,7 +158,7 @@ export default function ProductCategoryBlock() {
       {/* Grid: tables + bar + optional heatmap */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div role="region" aria-label="Topp 10 produkter" className="card p-4">
-          <div className="mb-2 text-sm text-base font-medium text-gray-900 dark:text-white">Produkter — topp 10</div>
+          <div className="mb-2 text-base font-bold text-gray-900 dark:text-white">Produkter — topp 10</div>
           <div className="max-h-80 overflow-auto">
             <Table>
               <TableHeader>
@@ -189,14 +189,14 @@ export default function ProductCategoryBlock() {
 
         {OFFERT_PER_CATEGORY_DISABLED ? (
           <div role="region" aria-label="Offertförfrågningar per kategori tabell" className="card p-4 opacity-50 grayscale pointer-events-none">
-            <div className="mb-2 text-sm text-base font-medium text-gray-900 dark:text-white">Offertförfrågningar per kategori</div>
+            <div className="mb-2 text-base font-bold text-gray-900 dark:text-white">Offertförfrågningar per kategori</div>
             <div className="h-24 flex items-center justify-center">
               <span className="text-3xl font-semibold text-gray-400">No data</span>
             </div>
           </div>
         ) : (
           <div role="region" aria-label="Offertförfrågningar per kategori tabell" className="card p-4">
-            <div className="mb-2 text-sm text-base font-medium text-gray-900 dark:text-white">Offertförfrågningar per kategori</div>
+            <div className="mb-2 text-base font-bold text-gray-900 dark:text-white">Offertförfrågningar per kategori</div>
             <div className="max-h-80 overflow-auto">
               <Table>
                 <TableHeader>
@@ -226,7 +226,7 @@ export default function ProductCategoryBlock() {
       <div className="grid grid-cols-1 gap-6">
         <div role="img" aria-label="Topp 5 kategorier efter försäljningsvärde stapeldiagram" className="card p-4">
           <div className="mb-3 flex items-center justify-between">
-            <div className="text-sm text-base font-medium text-gray-900 dark:text-white">Topp 5 produktkategorier efter försäljningsvärde</div>
+            <div className="text-base font-bold text-gray-900 dark:text-white">Topp 5 produktkategorier efter försäljningsvärde</div>
             <div className="flex items-center gap-2">
               <label htmlFor="categoryLevel" className="text-sm text-gray-600 dark:text-gray-400">Kategori-nivå:</label>
               <select
@@ -251,8 +251,7 @@ export default function ProductCategoryBlock() {
         </div>
       </div>
 
-      {/* Optional heatmap placeholder when data exists */}
-      <div className="text-xs text-gray-500">TODO: Heatmap kategori × konvertering/engagemang när datakälla finns.</div>
+      {/* Heatmap placeholder removed per request */}
     </SectionLayout>
   );
 }

@@ -447,11 +447,7 @@ export function LeadsBlock() {
             Antal offertförfrågningar, ansökningar och formular-leads
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            Källa: GA4 API
-          </span>
-        </div>
+        <div className="flex items-center gap-2" />
       </div>
 
       {/* KPI Cards Grid */}
@@ -620,7 +616,7 @@ export function LeadsBlock() {
                 </div>
               </div>
               
-              <span className="badge">Källa: GA4 API</span>
+              {/* Source badge removed per request */}
               {/* Temporarily hide comparison toggle */}
               {/* TODO: Re-enable when YoY comparison alignment is fixed */}
               {/* <div className="hidden md:flex items-center gap-2 text-xs">
@@ -647,18 +643,11 @@ export function LeadsBlock() {
           ) : (
             <div className="h-32 w-full bg-gray-100 dark:bg-gray-800" aria-label="Ingen data tillgänglig" />
           )}
-          <div className="mt-2 text-xs text-gray-500">
-            {xAxisLabels.length} datapunkter ({granularity === 'day' ? 'daglig' : granularity === 'week' ? 'veckovis' : 'månadsvis'} granularitet)
-          </div>
+          {/* Datapoint count removed per request */}
         </div>
       </div>
 
-      {/* Comparison Note */}
-      {data.comparisonMode !== 'none' && (
-        <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-          Jämförelse: {data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
-        </div>
-      )}
+      {/* Comparison note removed per request */}
     </div>
   );
 }

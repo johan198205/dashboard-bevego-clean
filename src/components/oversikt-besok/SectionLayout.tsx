@@ -17,9 +17,7 @@ export default function SectionLayout({ title, description, actions, className, 
           <h2 id={title.replace(/\s+/g, '-').toLowerCase()} className="text-xl font-bold text-gray-900 dark:text-white">
             {title}
           </h2>
-          {description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{description}</p>
-          )}
+          {/* Description hidden globally per request */}
         </div>
         {actions && (
           <div className="flex items-center gap-2">{actions}</div>

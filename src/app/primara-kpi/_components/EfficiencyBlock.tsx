@@ -89,11 +89,7 @@ export function EfficiencyBlock() {
             Konverteringsgrad och kostnad per förvärv per kanal
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            Källa: GA4 API
-          </span>
-        </div>
+        <div className="flex items-center gap-2" />
       </div>
 
       {/* KPI Cards Grid - Only conversion rate until Google Ads API is implemented */}
@@ -105,7 +101,6 @@ export function EfficiencyBlock() {
             growthRate={conversionRateGrowth}
             Icon={CheckIcon}
             variant="primary"
-            source="GA4 API"
             className="min-h-[208px]"
             comparisonLabel={data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
           />
@@ -125,9 +120,7 @@ export function EfficiencyBlock() {
               <h3 className="text-lg font-semibold text-dark dark:text-white">
                 Konverteringsgrad per kanal
               </h3>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-dark-5 dark:text-dark-6">Källa: GA4 API</span>
-              </div>
+              <div className="flex items-center gap-2" />
             </div>
           </div>
           
@@ -177,12 +170,7 @@ export function EfficiencyBlock() {
         </div>
       </div>
 
-      {/* Comparison Note */}
-      {data.comparisonMode !== 'none' && (
-        <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-          Jämförelse: {data.comparisonMode === 'yoy' ? 'vs. föregående år' : 'vs. föregående period'}
-        </div>
-      )}
+      {/* Comparison note removed per request */}
     </div>
   );
 }

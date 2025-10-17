@@ -140,11 +140,11 @@ export default function EngagementBlock() {
       actions={<InfoTooltip text="KPI-kort + trendlinjer. Brytning per kanal/enhet när STATE stödjer." />}
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <ScoreCard label="Total users" value={totalUsers ? formatUserCount(totalUsers.value) : "–"} growthRate={totalUsers?.delta} Icon={GlobeIcon} source="GA4 API" className="min-h-[132px]" />
+        <ScoreCard label="Total users" value={totalUsers ? formatUserCount(totalUsers.value) : "–"} growthRate={totalUsers?.delta} Icon={GlobeIcon} className="min-h-[132px]" />
         
-        <ScoreCard label="Antal unika kunder" value={totalPurchasers ? formatUserCount(totalPurchasers.value) : "–"} growthRate={totalPurchasers?.delta} Icon={GlobeIcon} source="GA4 API" className="min-h-[132px]" />
+        <ScoreCard label="Antal unika kunder" value={totalPurchasers ? formatUserCount(totalPurchasers.value) : "–"} growthRate={totalPurchasers?.delta} Icon={GlobeIcon} className="min-h-[132px]" />
         
-        <ScoreCard label="Engagement rate" value={engagementRate ? formatPercent(engagementRate.value) : "–"} growthRate={engagementRate?.delta} Icon={GlobeIcon} source="GA4 API" className="min-h-[132px]" />
+        <ScoreCard label="Engagement rate" value={engagementRate ? formatPercent(engagementRate.value) : "–"} growthRate={engagementRate?.delta} Icon={GlobeIcon} className="min-h-[132px]" />
         
         <ScoreCard 
           label="Newsletter signups" 
@@ -162,7 +162,6 @@ export default function EngagementBlock() {
           subtitle={newUsers ? `(${formatUserCount(newUsers.userCount)} användare)` : undefined}
           growthRate={newUsers?.delta} 
           Icon={GlobeIcon} 
-          source="GA4 API" 
           className="min-h-[132px]" 
         />
         
@@ -172,7 +171,6 @@ export default function EngagementBlock() {
           subtitle={loggedInUsers ? `(${formatUserCount(loggedInUsers.userCount)} användare)` : undefined}
           growthRate={loggedInUsers?.delta} 
           Icon={GlobeIcon} 
-          source="GA4 API" 
           className="min-h-[132px]" 
         />
         
@@ -182,7 +180,6 @@ export default function EngagementBlock() {
           subtitle={internalSearch ? `(${formatUserCount(internalSearch.userCount)} användare)` : undefined}
           growthRate={internalSearch?.delta} 
           Icon={GlobeIcon} 
-          source="GA4 API" 
           className="min-h-[132px]" 
         />
         
@@ -192,14 +189,12 @@ export default function EngagementBlock() {
           subtitle={sessionTime ? `Events/session: ${sessionTime.eventsPerSession.toFixed(1)}` : undefined}
           growthRate={sessionTime?.delta} 
           Icon={GlobeIcon} 
-          source="GA4 API" 
           className="min-h-[132px]" 
         />
       </div>
 
 
-      <div className="text-xs text-gray-500">TODO: Nedbrytning per kanal/enhet när STATE stödjer.</div>
-      {error && <div className="text-xs text-red-600">{error}</div>}
+      {/* Removed TODO and mockdata/error note per request */}
     </SectionLayout>
   );
 }

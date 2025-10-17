@@ -299,8 +299,8 @@ export function ScoreCard({
           />
         )}
 
-        {/* Source attribution */}
-        {source && (
+        {/* Source attribution (hidden for GA4 API per request) */}
+        {source && source !== "GA4 API" && (
           <div className={cn("text-xs text-dark-5 dark:text-dark-6", isCompact ? "mt-1" : "mt-4") }>
             Källa: {source}
           </div>

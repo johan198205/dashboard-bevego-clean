@@ -234,7 +234,7 @@ export default function FunnelBlock() {
         </div>
         
         <div className="card p-4 space-y-3" aria-label="Funnel-nyckeltal">
-          <div className="mb-2 text-base font-semibold text-gray-900 dark:text-white">Steg och tapp</div>
+          <div className="mb-2 text-base font-bold text-gray-900 dark:text-white">Steg och tapp</div>
           
           {steps.map((step, i) => (
             <div key={step.key} className="flex justify-between">
@@ -261,7 +261,7 @@ export default function FunnelBlock() {
         </div>
       </div>
       
-      <div className="text-xs text-gray-500">TODO: Avvisningsfrekvens på produktsidor när datakälla finns.</div>
+      {/* Bounce-rate TODO removed per request */}
     </SectionLayout>
   );
 }
