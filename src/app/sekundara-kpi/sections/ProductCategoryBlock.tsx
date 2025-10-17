@@ -30,6 +30,20 @@ export default function ProductCategoryBlock() {
   const [topCategoriesByConv, setTopCategoriesByConv] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [categoryLevel, setCategoryLevel] = useState<'category1' | 'category2' | 'category3'>('category2');
+
+  // Memoize query parameters for performance
+  const queryParams = useMemo(() => {
+    return new URLSearchParams({
+      start: state.range.start,
+      end: state.range.end,
+      grain: state.range.grain,
+      comparisonMode: state.range.comparisonMode,
+      channel: state.channel[0] || 'Alla',
+      device: state.device[0] || 'Alla',
+      categoryLevel: categoryLevel,
+    }).toString();
+  }, [state.range.start, state.range.end, state.range.grain, state.range.comparisonMode, state.channel, state.device, categoryLevel]);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,20 +51,12 @@ export default function ProductCategoryBlock() {
       try {
         setLoading(true);
         setError(null);
-        // Build query once to avoid duplicate requests (memo-like)
-        const params = new URLSearchParams({
-          start: state.range.start,
-          end: state.range.end,
-          grain: state.range.grain,
-          comparisonMode: state.range.comparisonMode,
-          channel: state.channel[0] || 'Alla',
-          device: state.device[0] || 'Alla',
-        }).toString();
+        // Use memoized query parameters for performance
         const [itemsRes, a, bMaybe, c] = await Promise.all([
-          fetch(`/api/ga4/top-items?${params}`),
-          fetch(`/api/kpi?metric=product_detail_views&${params}`),
-          OFFERT_PER_CATEGORY_DISABLED ? Promise.resolve(null) : fetch(`/api/kpi?metric=quote_requests_by_category&${params}`),
-          fetch(`/api/kpi?metric=top_categories_by_conversions&${params}`),
+          fetch(`/api/ga4/top-items?${queryParams}`),
+          fetch(`/api/kpi?metric=product_detail_views&${queryParams}`),
+          OFFERT_PER_CATEGORY_DISABLED ? Promise.resolve(null) : fetch(`/api/kpi?metric=quote_requests_by_category&${queryParams}`),
+          fetch(`/api/ga4/top-categories?${queryParams}`),
         ]);
         let ra: any = null, rb: any = null, rc: any = null;
         if (a.ok) ra = await a.json();
@@ -86,7 +92,8 @@ export default function ProductCategoryBlock() {
 
         const dv = (ra?.breakdown || []).slice(0, 10);
         const rq = OFFERT_PER_CATEGORY_DISABLED ? [] : (rb?.breakdown || []).slice(0, 10);
-        const top = (rc?.breakdown || []).slice(0, 5);
+        // Handle GA4 response format for top categories by revenue
+        const top = rc?.categories ? rc.categories.slice(0, 5) : (rc?.breakdown || []).slice(0, 5);
 
         setTopItems((items || []).slice(0, 10));
         setDetailViews(dv.length ? dv : mockDetail);
@@ -117,11 +124,11 @@ export default function ProductCategoryBlock() {
     };
     load();
     return () => { cancelled = true; };
-  }, [state.range.start, state.range.end, state.range.grain, state.range.comparisonMode, state.channel.join(","), state.device.join(",")]);
+  }, [queryParams]);
 
   const barSeries = useMemo(() => {
     const items = topCategoriesByConv;
-    return [{ name: "Konverteringar", data: items.map(r => r.value) }];
+    return [{ name: "Försäljningsvärde (SEK)", data: items.map(r => r.value) }];
   }, [topCategoriesByConv]);
 
   const barOptions = useMemo(() => ({
@@ -129,14 +136,23 @@ export default function ProductCategoryBlock() {
     plotOptions: { bar: { borderRadius: 4, horizontal: false, columnWidth: "55%" } },
     dataLabels: { enabled: false },
     xaxis: { categories: topCategoriesByConv.map(r => r.key) },
-    yaxis: { labels: { formatter: (v: number) => formatNumber(v) } },
+    yaxis: { 
+      labels: { 
+        formatter: (v: number) => new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 0 }).format(v)
+      } 
+    },
+    tooltip: {
+      y: {
+        formatter: (value: number) => new Intl.NumberFormat('sv-SE', { style: 'currency', currency: 'SEK', maximumFractionDigits: 2 }).format(value)
+      }
+    },
     colors: ["#E01E26"],
   }), [topCategoriesByConv]);
 
   return (
     <SectionLayout
       title="Produkt- & Kategoriprestanda"
-      description="Detaljvisningar, offertförfrågningar per kategori samt toppkategorier efter konverteringar"
+      description="Detaljvisningar, offertförfrågningar per kategori samt toppkategorier efter försäljningsvärde"
       actions={<InfoTooltip text="Källa: GA4 + affärslogik. Följer globala filter." />}
     >
       {/* Grid: tables + bar + optional heatmap */}
@@ -208,12 +224,29 @@ export default function ProductCategoryBlock() {
       </div>
 
       <div className="grid grid-cols-1 gap-6">
-        <div role="img" aria-label="Topp 5 kategorier efter konverteringar stapeldiagram" className="card p-4">
-          <div className="mb-2 text-sm text-base font-medium text-gray-900 dark:text-white">Topp 5 produktkategorier efter konverteringar</div>
+        <div role="img" aria-label="Topp 5 kategorier efter försäljningsvärde stapeldiagram" className="card p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-sm text-base font-medium text-gray-900 dark:text-white">Topp 5 produktkategorier efter försäljningsvärde</div>
+            <div className="flex items-center gap-2">
+              <label htmlFor="categoryLevel" className="text-sm text-gray-600 dark:text-gray-400">Kategori-nivå:</label>
+              <select
+                id="categoryLevel"
+                value={categoryLevel}
+                onChange={(e) => setCategoryLevel(e.target.value as 'category1' | 'category2' | 'category3')}
+                className="rounded border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white"
+              >
+                <option value="category1">Category 1</option>
+                <option value="category2">Category 2</option>
+                <option value="category3">Category 3</option>
+              </select>
+            </div>
+          </div>
           {topCategoriesByConv.length > 0 ? (
             <ApexChart options={barOptions as any} series={barSeries as any} type="bar" height={320} />
           ) : (
-            <div className="h-32 w-full bg-gray-100 dark:bg-gray-800" aria-label="Ingen data" />
+            <div className="h-32 w-full flex items-center justify-center">
+              <span className="text-gray-500 dark:text-gray-400">Ingen data tillgänglig</span>
+            </div>
           )}
         </div>
       </div>

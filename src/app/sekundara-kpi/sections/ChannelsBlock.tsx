@@ -3,6 +3,7 @@ import SectionLayout from "@/components/oversikt-besok/SectionLayout";
 import { Distributions } from "@/components/oversikt-besok/Distributions";
 import InfoTooltip from "@/components/InfoTooltip";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { StatusPill } from "@/components/ui/status-pill";
 import { useFilters } from "@/components/GlobalFilters";
 import { useEffect, useMemo, useState } from "react";
 import { formatNumber, formatPercent } from "@/lib/format";
@@ -149,7 +150,20 @@ export default function ChannelsBlock() {
                     <TableCell>{r.key}</TableCell>
                     <TableCell className="text-right">{formatNumber(r.sessions)}</TableCell>
                     <TableCell className="text-right">{r.conversions == null ? "–" : formatNumber(r.conversions)}</TableCell>
-                    <TableCell className="text-right">{r.conversionRate != null ? formatPercent(r.conversionRate) : "–"}</TableCell>
+                    <TableCell className="text-right">
+                      {(() => {
+                        const raw = r.conversionRate;
+                        const value = Number.isFinite(raw as number) && raw != null ? (raw as number) : 0;
+                        const variant = value >= 3 ? "success" : value >= 1 ? "warning" : "error";
+                        return (
+                          <div className="flex justify-end">
+                            <StatusPill variant={variant} size="sm" aria-label={formatPercent(value, { showSign: false })} className="min-w-[64px] justify-center">
+                              {formatPercent(value, { showSign: false })}
+                            </StatusPill>
+                          </div>
+                        );
+                      })()}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

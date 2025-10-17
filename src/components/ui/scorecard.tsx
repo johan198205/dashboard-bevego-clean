@@ -9,12 +9,14 @@ import { KpiProgressBar } from "./kpi-progress-bar";
 type ScoreCardProps = {
   label: string;
   value: number | string;
+  subtitle?: string; // Additional text under the main value
   growthRate?: number;
   Icon: ComponentType<SVGProps<SVGSVGElement>>;
   source?: string;
   variant?: "default" | "primary" | "success" | "warning" | "error" | "info";
   className?: string;
   onClick?: () => void; // optional, non-breaking
+  disabled?: boolean; // For disabled/grayed out cards
   // Optional provider for inline sparkline
   getSeries?: (args: { start: string; end: string; grain: any; filters: any }) => Promise<{ x: number; y: number }[]>;
   size?: "default" | "compact";
@@ -73,12 +75,14 @@ const variantStyles = {
 export function ScoreCard({ 
   label, 
   value, 
+  subtitle,
   growthRate, 
   Icon, 
   source,
   variant = "default",
   className,
   onClick,
+  disabled = false,
   getSeries,
   size = "default",
   appearance = "default",
@@ -168,6 +172,13 @@ export function ScoreCard({
             <div className="text-4xl font-semibold text-neutral-900 dark:text-white leading-none mb-2">
               {value}
             </div>
+            
+            {/* Subtitle */}
+            {subtitle && (
+              <div className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                {subtitle}
+              </div>
+            )}
             
             {/* Delta chip */}
             {growthRate !== undefined && comparisonLabel && (

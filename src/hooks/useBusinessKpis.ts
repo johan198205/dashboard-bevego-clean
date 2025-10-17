@@ -53,6 +53,8 @@ export function useBusinessKpis() {
   const [data, setData] = useState<BusinessKpiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  console.log('useBusinessKpis: Hook called with state:', state);
 
   useEffect(() => {
     const fetchData = async () => {

@@ -73,6 +73,8 @@ const aggregateDataByGranularity = (data: any[], granularity: Granularity) => {
 export function LeadsBlock() {
   const { data, loading, error } = useBusinessKpis();
   const { state } = useFilters();
+  
+  console.log('LeadsBlock: data=', data, 'loading=', loading, 'error=', error);
   const [granularity, setGranularity] = useState<Granularity>('day');
   const [activeSeries, setActiveSeries] = useState({
     quoteRequests: false,

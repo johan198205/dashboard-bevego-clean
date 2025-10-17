@@ -446,14 +446,26 @@ export class GA4Client {
         orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }],
       };
 
-      const [sessionsResponse, purchasesResponse] = await Promise.all([
+      // Get active users per channel
+      const activeUsersRequest = {
+        property: this.propertyId,
+        dateRanges: [{ startDate, endDate }],
+        dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+        metrics: [{ name: 'activeUsers' }],
+        dimensionFilter: this.buildDimensionFilter(filters),
+        orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }],
+      };
+
+      const [sessionsResponse, purchasesResponse, activeUsersResponse] = await Promise.all([
         this.runReport(sessionsRequest),
-        this.runReport(purchasesRequest)
+        this.runReport(purchasesRequest),
+        this.runReport(activeUsersRequest)
       ]);
 
       // Create maps for easy lookup
       const sessionsMap = new Map();
       const purchasesMap = new Map();
+      const activeUsersMap = new Map();
 
       sessionsResponse.rows?.forEach((row: any) => {
         const channel = row.dimensionValues?.[0]?.value || 'Unknown';
@@ -467,10 +479,17 @@ export class GA4Client {
         purchasesMap.set(channel, purchases);
       });
 
+      activeUsersResponse.rows?.forEach((row: any) => {
+        const channel = row.dimensionValues?.[0]?.value || 'Unknown';
+        const activeUsers = Number(row.metricValues?.[0]?.value || 0);
+        activeUsersMap.set(channel, activeUsers);
+      });
+
       // Combine data and sort by sessions (descending) for top 5 channels
       const result = Array.from(sessionsMap.keys()).map(channel => {
         const sessions = sessionsMap.get(channel) || 0;
         const purchases = purchasesMap.get(channel) || 0;
+        const activeUsers = activeUsersMap.get(channel) || 0;
         
         // Calculate session conversion rate: purchase events / sessions * 100
         const sessionConversionRate = sessions > 0 ? (purchases / sessions) * 100 : 0;
@@ -478,6 +497,7 @@ export class GA4Client {
         return {
           channel,
           sessions,
+          activeUsers,
           purchases,
           sessionConversionRate
         };
@@ -633,6 +653,44 @@ export class GA4Client {
 
     this.cache.set(cacheKey, items);
     return items;
+  }
+
+  // Get top categories by item revenue (for "Topp 5 produktkategorier efter konverteringar")
+  async getTopCategoriesByRevenue(startDate: string, endDate: string, filters?: any, categoryLevel: 'category1' | 'category2' | 'category3' = 'category2') {
+    const cacheKey = this.cache.generateKey('getTopCategoriesByRevenue', { startDate, endDate, filters, categoryLevel });
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    // Map category level to GA4 dimension name
+    const dimensionMap = {
+      category1: 'itemCategory',
+      category2: 'itemCategory2', 
+      category3: 'itemCategory3'
+    };
+    const dimensionName = dimensionMap[categoryLevel];
+
+    const request = {
+      property: this.propertyId,
+      dateRanges: [{ startDate, endDate }],
+      dimensions: [{ name: dimensionName }], // GA4 dimension for product categories
+      metrics: [
+        { name: 'itemRevenue' }, // Total revenue per category (SEK)
+      ],
+      dimensionFilter: this.buildFilterExpression(filters),
+      // Sortering: högst revenue överst
+      orderBys: [{ metric: { metricName: 'itemRevenue' }, desc: true }],
+      limit: 5, // Top 5 categories as requested
+    } as any;
+
+    const response = await this.runReport(request);
+    const rows = response.rows || [];
+    const categories = rows.map((row: any) => ({
+      key: row.dimensionValues?.[0]?.value || 'Okänd kategori',
+      value: Number(row.metricValues?.[0]?.value || 0), // itemRevenue in SEK
+    }));
+
+    this.cache.set(cacheKey, categories);
+    return categories;
   }
 
   // Get top referrers (pageReferrer - actual URLs)
