@@ -30,9 +30,9 @@ export function useKpi({ metric, ttlMs = 5 * 60 * 1000 }: UseKpiOptions) {
       device,
       channel,
     };
-  }, [metric, range.start, range.end, range.grain, range.comparisonMode, audience, device, channel]);
+  }, [metric, range.start, range.end, range.grain, range.comparisonMode, audience, device, channel, (state as any)?.refreshToken]);
 
-  const cacheKey = useMemo(() => buildKpiCacheKey(params), [params]);
+  const cacheKey = useMemo(() => buildKpiCacheKey({ ...params, refreshToken: (state as any)?.refreshToken }), [params, (state as any)?.refreshToken]);
 
   const [data, setData] = useState<KpiSummary | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

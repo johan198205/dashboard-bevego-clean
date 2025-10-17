@@ -154,7 +154,7 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
     return () => {
       controller.abort();
     };
-  }, [filterState.range.start, filterState.range.end, filterState.range.comparisonMode, filterState.channel, filterState.device, granularity]);
+  }, [filterState.range.start, filterState.range.end, filterState.range.comparisonMode, filterState.channel, filterState.device, granularity, (filterState as any)?.refreshToken]);
 
   // Initial data fetch (only if we don't have initial data)
   useEffect(() => {
@@ -216,8 +216,8 @@ export function OverviewPageClient({ initialData, initialError }: Props) {
     );
   }
 
-  // Loading state (only show for initial load, not for granularity changes)
-  if ((loading && !data) || !data) {
+  // Loading state (show for initial load and filter changes)
+  if (loading || !data) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

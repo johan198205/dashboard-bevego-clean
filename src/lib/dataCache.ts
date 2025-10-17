@@ -270,6 +270,8 @@ export function buildKpiCacheKey(params: {
   audience?: string[];
   device?: string[];
   channel?: string[];
+  // Optional token to force-invalidate cache via UI "Uppdatera"
+  refreshToken?: string;
 }): string {
   return makeCacheKey({
     dataset: 'ga4', // Add dataset discriminator per requirements

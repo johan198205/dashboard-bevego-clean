@@ -1458,30 +1458,54 @@ export class GA4Client {
       }
     });
 
-    // Channel filter
+    // Channel filter (support both single string and array)
     if (filters.channel && filters.channel !== 'Alla') {
-      filterExpressions.push({
-        filter: {
-          fieldName: 'sessionDefaultChannelGroup',
-          stringFilter: {
-            matchType: 'EXACT',
-            value: filters.channel
+      const channels = Array.isArray(filters.channel) ? filters.channel : [filters.channel];
+      if (channels.length === 1) {
+        filterExpressions.push({
+          filter: {
+            fieldName: 'sessionDefaultChannelGroup',
+            stringFilter: {
+              matchType: 'EXACT',
+              value: channels[0]
+            }
           }
-        }
-      });
+        });
+      } else if (channels.length > 1) {
+        filterExpressions.push({
+          filter: {
+            fieldName: 'sessionDefaultChannelGroup',
+            inListFilter: {
+              values: channels
+            }
+          }
+        });
+      }
     }
 
-    // Device filter
+    // Device filter (support both single string and array)
     if (filters.device && filters.device !== 'Alla') {
-      filterExpressions.push({
-        filter: {
-          fieldName: 'deviceCategory',
-          stringFilter: {
-            matchType: 'EXACT',
-            value: filters.device
+      const devices = Array.isArray(filters.device) ? filters.device : [filters.device];
+      if (devices.length === 1) {
+        filterExpressions.push({
+          filter: {
+            fieldName: 'deviceCategory',
+            stringFilter: {
+              matchType: 'EXACT',
+              value: devices[0]
+            }
           }
-        }
-      });
+        });
+      } else if (devices.length > 1) {
+        filterExpressions.push({
+          filter: {
+            fieldName: 'deviceCategory',
+            inListFilter: {
+              values: devices
+            }
+          }
+        });
+      }
     }
 
     // Custom dimensions (role, unit) - if they exist

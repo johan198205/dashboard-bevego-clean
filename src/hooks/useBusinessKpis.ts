@@ -171,6 +171,7 @@ export function useBusinessKpis() {
     state.range.comparisonMode,
     state.channel.join(','),
     state.device.join(','),
+    state.refreshToken,
   ]);
 
   return { data, loading, error };

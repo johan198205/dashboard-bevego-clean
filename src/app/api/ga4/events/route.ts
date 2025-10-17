@@ -15,6 +15,8 @@ export async function GET(req: NextRequest) {
     const grain = url.searchParams.get('grain') || 'day';
     const dimension = url.searchParams.get('dimension');
     const filter = url.searchParams.get('filter');
+    const deviceParam = url.searchParams.get('device'); // comma-separated list
+    const channelParam = url.searchParams.get('channel'); // comma-separated list
 
     // Validate required parameters
     if (!event || !metric || !start || !end) {
@@ -84,6 +86,47 @@ export async function GET(req: NextRequest) {
           stringFilter: { matchType: 'EXACT', value: filter }
         }
       });
+    }
+
+    // Map and add device filters
+    if (deviceParam) {
+      const devices = deviceParam.split(',').map((d) => d.trim()).filter(Boolean);
+      if (devices.length) {
+        const deviceMap: Record<string, string> = { Desktop: 'desktop', Mobil: 'mobile', Surfplatta: 'tablet' };
+        expressions.push({
+          orGroup: {
+            expressions: devices.map((d) => ({
+              filter: {
+                fieldName: 'deviceCategory',
+                stringFilter: { matchType: 'EXACT', value: deviceMap[d] || d }
+              }
+            }))
+          }
+        });
+      }
+    }
+
+    // Map and add channel filters (session scope)
+    if (channelParam) {
+      const channels = channelParam.split(',').map((c) => c.trim()).filter(Boolean);
+      if (channels.length) {
+        const channelMap: Record<string, string> = {
+          'Direkt': 'Direct',
+          'Organiskt': 'Organic Search',
+          'Kampanj': 'Paid Search',
+          'E-post': 'Email'
+        };
+        expressions.push({
+          orGroup: {
+            expressions: channels.map((c) => ({
+              filter: {
+                fieldName: 'sessionDefaultChannelGroup',
+                stringFilter: { matchType: 'EXACT', value: channelMap[c] || c }
+              }
+            }))
+          }
+        });
+      }
     }
 
     const request = {

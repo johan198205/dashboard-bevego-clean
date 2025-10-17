@@ -3,11 +3,14 @@ import { createContext, useContext, useMemo, useState, useEffect } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { Grain } from "@/lib/types";
 import FilterDropdown from "./FilterDropdown";
+import { clearCache } from "@/lib/dataCache";
 
 type FilterState = {
   range: { start: string; end: string; compareYoy: boolean; comparisonMode: 'none' | 'yoy' | 'prev'; grain: Grain };
   device: string[];
   channel: string[];
+  // Non-persisted token to force refetches when user clicks "Uppdatera"
+  refreshToken?: string;
 };
 
 type FiltersContextType = {
@@ -183,138 +186,149 @@ export default function GlobalFilters() {
   }, [state.range.start, state.range.end, state.range.comparisonMode, state.device, state.channel, currentSearch, pathname, router]);
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-3" suppressHydrationWarning>
-      <div className="card filter-box">
-        <span className="title">Datumintervall</span>
-        <input
-          type="date"
-          value={state.range.start}
-          onChange={(e) => {
-            setPreset("");
-            setState((p) => ({ ...p, range: { ...p.range, start: e.target.value } }));
-          }}
-          className="rounded border px-2 py-1"
-        />
-        <span className="text-gray-400">—</span>
-        <input
-          type="date"
-          value={state.range.end}
-          onChange={(e) => {
-            setPreset("");
-            setState((p) => ({ ...p, range: { ...p.range, end: e.target.value } }));
-          }}
-          className="rounded border px-2 py-1"
-        />
-        <select
-          className="ml-2 rounded border px-2 py-1"
-          value={preset}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (!val) return;
-            let r: { start: string; end: string } | null = null;
-            if (val === "today") r = today();
-            else if (val === "yesterday") r = yesterday();
-            else if (val === "last7") r = lastNDays(7);
-            else if (val === "last28") r = lastNDays(28);
-            else if (val === "last30") r = lastNDays(30);
-            else if (val === "last90") r = lastNDays(90);
-            else if (val === "last12m") r = lastTwelveMonths();
-            else if (val === "lastQ") r = lastQuarter();
-            if (r) {
-              setState((p) => ({ ...p, range: { ...p.range, start: r!.start, end: r!.end } }));
-            }
-            setPreset(val);
-          }}
-        >
-          <option value="">Välj...</option>
-          <option value="today">Idag</option>
-          <option value="yesterday">Igår</option>
-          <option value="last7">Senaste 7 dagarna</option>
-          <option value="last28">Senaste 28 dagarna</option>
-          <option value="last30">Senaste 30 dagarna</option>
-          <option value="last90">Senaste 90 dagarna</option>
-          <option value="last12m">Senaste 12 månaderna</option>
-          <option value="lastQ">Senaste kvartalet</option>
-        </select>
-      </div>
-
-      <div className="card filter-box">
-        <span className="title">Jämförelse</span>
-        <select
-          className="rounded border px-2 py-1"
-          value={state.range.comparisonMode}
-          onChange={(e) => {
-            const mode = e.target.value as 'none' | 'yoy' | 'prev';
-            setState((p) => ({ ...p, range: { ...p.range, comparisonMode: mode, compareYoy: mode === 'yoy' } }));
-          }}
-        >
-          <option value="none">Ingen</option>
-          <option value="yoy">YoY</option>
-          <option value="prev">Föregående period</option>
-        </select>
-      </div>
-
-      {/* Removed global Dag/Vecka/Månad filter per requirement. Local controls are provided within each chart widget. */}
-
-
-      <FilterDropdown
-        label="Enhet"
-        items={[
-          { value: "Desktop", label: "Desktop" },
-          { value: "Mobil", label: "Mobil" },
-          { value: "Surfplatta", label: "Surfplatta" },
-        ]}
-        values={state.device}
-        onChange={(values) => setState((p) => ({ ...p, device: values }))}
-      />
-
-      <FilterDropdown
-        label="Kanal"
-        items={[
-          { value: "Direkt", label: "Direkt" },
-          { value: "Organiskt", label: "Organiskt" },
-          { value: "Kampanj", label: "Kampanj" },
-          { value: "E-post", label: "E-post" },
-        ]}
-        values={state.channel}
-        onChange={(values) => setState((p) => ({ ...p, channel: values }))}
-      />
-
-      {/* Apply button removed - all dashboards now use auto-apply */}
-
-      {/* Selected filter chips */}
-      {(state.device.length > 0 || state.channel.length > 0) && (
-        <div className="flex flex-wrap items-center gap-2">
-          {state.device.map((d) => (
-            <button
-              key={`chip-device-${d}`}
-              className="inline-flex items-center gap-2 rounded-full border border-stroke bg-white px-2 py-0.5 text-xs shadow-sm dark:border-dark-3 dark:bg-dark-2"
-              onClick={() => setState((p) => ({ ...p, device: p.device.filter((v) => v !== d) }))}
-              aria-label={`Ta bort filter Enhet: ${d}`}
-              title={`Enhet: ${d}`}
-            >
-              <span className="text-gray-600 dark:text-gray-200">Enhet: {d}</span>
-              <span className="ml-1 inline-grid size-4 place-items-center rounded-full bg-gray-200 text-gray-700 dark:bg-[#FFFFFF1A] dark:text-gray-200">×</span>
-            </button>
-          ))}
-
-          {state.channel.map((c) => (
-            <button
-              key={`chip-channel-${c}`}
-              className="inline-flex items-center gap-2 rounded-full border border-stroke bg-white px-2 py-0.5 text-xs shadow-sm dark:border-dark-3 dark:bg-dark-2"
-              onClick={() => setState((p) => ({ ...p, channel: p.channel.filter((v) => v !== c) }))}
-              aria-label={`Ta bort filter Kanal: ${c}`}
-              title={`Kanal: ${c}`}
-            >
-              <span className="text-gray-600 dark:text-gray-200">Kanal: {c}</span>
-              <span className="ml-1 inline-grid size-4 place-items-center rounded-full bg-gray-200 text-gray-700 dark:bg-[#FFFFFF1A] dark:text-gray-200">×</span>
-            </button>
-          ))}
-
+    <div className="mb-4" suppressHydrationWarning>
+      {/* First row: All filter dropdowns */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <div className="card filter-box whitespace-nowrap text-xs">
+          <span className="title text-xs">Datum</span>
+          <input
+            type="date"
+            value={state.range.start}
+            onChange={(e) => {
+              setPreset("");
+              setState((p) => ({ ...p, range: { ...p.range, start: e.target.value } }));
+            }}
+            className="rounded border px-1 py-0.5 text-xs w-24"
+          />
+          <span className="text-gray-400 text-xs">—</span>
+          <input
+            type="date"
+            value={state.range.end}
+            onChange={(e) => {
+              setPreset("");
+              setState((p) => ({ ...p, range: { ...p.range, end: e.target.value } }));
+            }}
+            className="rounded border px-1 py-0.5 text-xs w-24"
+          />
+          <select
+            className="ml-1 rounded border px-1 py-0.5 text-xs w-32"
+            value={preset}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (!val) return;
+              let r: { start: string; end: string } | null = null;
+              if (val === "today") r = today();
+              else if (val === "yesterday") r = yesterday();
+              else if (val === "last7") r = lastNDays(7);
+              else if (val === "last28") r = lastNDays(28);
+              else if (val === "last30") r = lastNDays(30);
+              else if (val === "last90") r = lastNDays(90);
+              else if (val === "last12m") r = lastTwelveMonths();
+              else if (val === "lastQ") r = lastQuarter();
+              if (r) {
+                setState((p) => ({ ...p, range: { ...p.range, start: r!.start, end: r!.end } }));
+              }
+              setPreset(val);
+            }}
+          >
+            <option value="">Välj...</option>
+            <option value="today">Idag</option>
+            <option value="yesterday">Igår</option>
+            <option value="last7">Senaste 7 dagarna</option>
+            <option value="last28">Senaste 28 dagarna</option>
+            <option value="last30">Senaste 30 dagarna</option>
+            <option value="last90">Senaste 90 dagarna</option>
+            <option value="last12m">Senaste 12 månaderna</option>
+            <option value="lastQ">Senaste kvartalet</option>
+          </select>
         </div>
-      )}
+
+        <div className="card filter-box whitespace-nowrap text-xs">
+          <span className="title text-xs">Jämförelse</span>
+          <select
+            className="rounded border px-1 py-0.5 text-xs w-24"
+            value={state.range.comparisonMode}
+            onChange={(e) => {
+              const mode = e.target.value as 'none' | 'yoy' | 'prev';
+              setState((p) => ({ ...p, range: { ...p.range, comparisonMode: mode, compareYoy: mode === 'yoy' } }));
+            }}
+          >
+            <option value="none">Ingen</option>
+            <option value="yoy">YoY</option>
+            <option value="prev">Föregående period</option>
+          </select>
+        </div>
+
+        <div className="whitespace-nowrap text-xs">
+          <FilterDropdown
+            label="Enhet"
+            items={[
+              { value: "Desktop", label: "Desktop" },
+              { value: "Mobil", label: "Mobil" },
+              { value: "Surfplatta", label: "Surfplatta" },
+            ]}
+            values={state.device}
+            onChange={(values) => setState((p) => ({ ...p, device: values }))}
+          />
+        </div>
+
+        <div className="whitespace-nowrap text-xs">
+          <FilterDropdown
+            label="Kanal"
+            items={[
+              { value: "Direkt", label: "Direkt" },
+              { value: "Organiskt", label: "Organiskt" },
+              { value: "Kampanj", label: "Kampanj" },
+              { value: "E-post", label: "E-post" },
+            ]}
+            values={state.channel}
+            onChange={(values) => setState((p) => ({ ...p, channel: values }))}
+          />
+        </div>
+      </div>
+
+      {/* Second row: Update button and selected filter tags */}
+      <div className="flex flex-wrap items-center gap-3">
+        {/* Manual refresh button to trigger refetch and bypass stale cache */}
+        <button
+          className="rounded border px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 dark:bg-dark-3 dark:hover:bg-dark-2"
+          onClick={() => {
+            try { clearCache('ga4'); } catch {}
+            setState((p) => ({ ...p, refreshToken: String(Date.now()) }));
+          }}
+          aria-label="Uppdatera data"
+          title="Uppdatera data"
+        >
+          Uppdatera
+        </button>
+
+        {/* Selected filter chips */}
+        {state.device.map((d) => (
+          <button
+            key={`chip-device-${d}`}
+            className="inline-flex items-center gap-2 rounded-full border border-stroke bg-white px-2 py-0.5 text-xs shadow-sm dark:border-dark-3 dark:bg-dark-2"
+            onClick={() => setState((p) => ({ ...p, device: p.device.filter((v) => v !== d) }))}
+            aria-label={`Ta bort filter Enhet: ${d}`}
+            title={`Enhet: ${d}`}
+          >
+            <span className="text-gray-600 dark:text-gray-200">Enhet: {d}</span>
+            <span className="ml-1 inline-grid size-4 place-items-center rounded-full bg-gray-200 text-gray-700 dark:bg-[#FFFFFF1A] dark:text-gray-200">×</span>
+          </button>
+        ))}
+
+        {state.channel.map((c) => (
+          <button
+            key={`chip-channel-${c}`}
+            className="inline-flex items-center gap-2 rounded-full border border-stroke bg-white px-2 py-0.5 text-xs shadow-sm dark:border-dark-3 dark:bg-dark-2"
+            onClick={() => setState((p) => ({ ...p, channel: p.channel.filter((v) => v !== c) }))}
+            aria-label={`Ta bort filter Kanal: ${c}`}
+            title={`Kanal: ${c}`}
+          >
+            <span className="text-gray-600 dark:text-gray-200">Kanal: {c}</span>
+            <span className="ml-1 inline-grid size-4 place-items-center rounded-full bg-gray-200 text-gray-700 dark:bg-[#FFFFFF1A] dark:text-gray-200">×</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
-
-

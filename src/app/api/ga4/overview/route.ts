@@ -376,6 +376,26 @@ export async function GET(req: NextRequest) {
   const end = url.searchParams.get('end');
   const compare = url.searchParams.get('compare') || 'yoy';
   const grain = (url.searchParams.get('grain') as 'day' | 'week' | 'month') || 'day';
+  // Optional filters
+  const deviceParam = url.searchParams.get('device') || '';
+  const channelParam = url.searchParams.get('channel') || '';
+  const deviceMap: Record<string, string> = { Desktop: 'desktop', Mobil: 'mobile', Surfplatta: 'tablet', desktop: 'desktop', mobile: 'mobile', tablet: 'tablet' };
+  const channelMap: Record<string, string> = { 
+    'Organiskt': 'Organic Search', 
+    'Direkt': 'Direct', 
+    'Kampanj': 'Paid Search', 
+    'E-post': 'Email',
+    'Organic Search': 'Organic Search',
+    'Direct': 'Direct',
+    'Paid Search': 'Paid Search',
+    'Email': 'Email'
+  };
+  const normalizedDevices = deviceParam.split(',').map(d => d.trim()).filter(Boolean).map(d => deviceMap[d] || d);
+  const normalizedChannels = channelParam.split(',').map(c => c.trim()).filter(Boolean).map(c => channelMap[c] || c);
+  const filters = (normalizedDevices.length > 0 || normalizedChannels.length > 0) ? { 
+    device: normalizedDevices.length > 0 ? normalizedDevices : undefined, 
+    channel: normalizedChannels.length > 0 ? normalizedChannels : undefined 
+  } : undefined;
 
   try {
 
@@ -395,19 +415,19 @@ export async function GET(req: NextRequest) {
       console.log('GA4 Overview API: Fetching real GA4 data for', start, 'to', end);
       
       // Get summary KPIs from GA4
-      const summaryData = await client.getSummaryKPIs(start, end);
+      const summaryData = await client.getSummaryKPIs(start, end, filters);
       
       // Get timeseries data from GA4 with granularity support
-      const timeseriesData = await client.getTimeseries(start, end, grain);
+      const timeseriesData = await client.getTimeseries(start, end, grain, filters);
       
             // Get channel data
-            const channels = await client.getChannelDistribution(start, end);
+            const channels = await client.getChannelDistribution(start, end, filters);
 
             // Get device data
-            const devices = await client.getDeviceDistribution(start, end);
+            const devices = await client.getDeviceDistribution(start, end, filters);
 
             // Get city data
-            const cities = await client.getTopCities(start, end);
+            const cities = await client.getTopCities(start, end, filters);
 
             // Calculate comparison data for channels, devices, and cities
             let channelComparison = channels.map((channel: any) => ({ ...channel, comparisonPct: 0 }));
@@ -426,7 +446,8 @@ export async function GET(req: NextRequest) {
                   
                   const lastYearChannels = await client.getChannelDistribution(
                     lastYearStart.toISOString().slice(0, 10), 
-                    lastYearEnd.toISOString().slice(0, 10)
+                    lastYearEnd.toISOString().slice(0, 10),
+                    filters
                   );
                   
                   channelComparison = channels.map((channel: any) => {
@@ -440,7 +461,8 @@ export async function GET(req: NextRequest) {
                   // Get device comparison data for same period last year
                   const lastYearDevices = await client.getDeviceDistribution(
                     lastYearStart.toISOString().slice(0, 10), 
-                    lastYearEnd.toISOString().slice(0, 10)
+                    lastYearEnd.toISOString().slice(0, 10),
+                    filters
                   );
                   
                   deviceComparison = devices.map((device: any) => {
@@ -454,7 +476,8 @@ export async function GET(req: NextRequest) {
                   // Get city comparison data for same period last year
                   const lastYearCities = await client.getTopCities(
                     lastYearStart.toISOString().slice(0, 10), 
-                    lastYearEnd.toISOString().slice(0, 10)
+                    lastYearEnd.toISOString().slice(0, 10),
+                    filters
                   );
                   
                   cityComparison = cities.map((city: any) => {
@@ -474,7 +497,8 @@ export async function GET(req: NextRequest) {
                   
                   const prevChannels = await client.getChannelDistribution(
                     prevStart.toISOString().slice(0, 10), 
-                    prevEnd.toISOString().slice(0, 10)
+                    prevEnd.toISOString().slice(0, 10),
+                    filters
                   );
                   
                   channelComparison = channels.map((channel: any) => {
@@ -488,7 +512,8 @@ export async function GET(req: NextRequest) {
                   // Get device comparison data for previous period
                   const prevDevices = await client.getDeviceDistribution(
                     prevStart.toISOString().slice(0, 10), 
-                    prevEnd.toISOString().slice(0, 10)
+                    prevEnd.toISOString().slice(0, 10),
+                    filters
                   );
                   
                   deviceComparison = devices.map((device: any) => {
@@ -502,7 +527,8 @@ export async function GET(req: NextRequest) {
                   // Get city comparison data for previous period
                   const prevCities = await client.getTopCities(
                     prevStart.toISOString().slice(0, 10), 
-                    prevEnd.toISOString().slice(0, 10)
+                    prevEnd.toISOString().slice(0, 10),
+                    filters
                   );
                   
                   cityComparison = cities.map((city: any) => {
@@ -520,10 +546,10 @@ export async function GET(req: NextRequest) {
             }
       
             // Get top pages data
-            const topPages = await client.getTopPages(start, end);
+            const topPages = await client.getTopPages(start, end, filters);
 
             // Get top referrers data
-            const referrers = await client.getTopReferrers(start, end);
+            const referrers = await client.getTopReferrers(start, end, filters);
 
             // Get comparison data for the same period last year or previous period
             let comparisonData = null;
@@ -536,7 +562,8 @@ export async function GET(req: NextRequest) {
               
               const lastYearSummary = await client.getSummaryKPIs(
                 lastYearStart.toISOString().slice(0, 10),
-                lastYearEnd.toISOString().slice(0, 10)
+                lastYearEnd.toISOString().slice(0, 10),
+                filters
               );
               
               comparisonData = {
@@ -559,7 +586,8 @@ export async function GET(req: NextRequest) {
               
               const prevSummary = await client.getSummaryKPIs(
                 prevStart.toISOString().slice(0, 10),
-                prevEnd.toISOString().slice(0, 10)
+                prevEnd.toISOString().slice(0, 10),
+                filters
               );
               
               comparisonData = {

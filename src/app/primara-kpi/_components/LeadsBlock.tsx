@@ -100,10 +100,14 @@ export function LeadsBlock() {
     const fetchTimeseriesData = async () => {
       setTimeseriesLoading(true);
       try {
+        const qs = new URLSearchParams({ start: state.range.start, end: state.range.end, grain: granularity });
+        if (state.device.length) qs.set('device', state.device.join(','));
+        if (state.channel.length) qs.set('channel', state.channel.join(','));
+        const base = qs.toString();
         const [customerApplicationsTimeseries, ecommerceApplicationsTimeseries, formLeadsTimeseries] = await Promise.all([
-          fetch(`/api/ga4/events?event=ansok_klick&metric=eventCount&start=${state.range.start}&end=${state.range.end}&grain=${granularity}`).then(r => r.json()).catch(() => ({ timeseries: [] })),
-          fetch(`/api/ga4/events?event=ehandel_ansok&metric=eventCount&start=${state.range.start}&end=${state.range.end}&grain=${granularity}`).then(r => r.json()).catch(() => ({ timeseries: [] })),
-          fetch(`/api/ga4/events?event=form_submit&metric=eventCount&start=${state.range.start}&end=${state.range.end}&grain=${granularity}`).then(r => r.json()).catch(() => ({ timeseries: [] }))
+          fetch(`/api/ga4/events?event=ansok_klick&metric=eventCount&${base}`).then(r => r.json()).catch(() => ({ timeseries: [] })),
+          fetch(`/api/ga4/events?event=ehandel_ansok&metric=eventCount&${base}`).then(r => r.json()).catch(() => ({ timeseries: [] })),
+          fetch(`/api/ga4/events?event=form_submit&metric=eventCount&${base}`).then(r => r.json()).catch(() => ({ timeseries: [] }))
         ]);
         
         setTimeseriesData({
@@ -119,7 +123,7 @@ export function LeadsBlock() {
     };
 
     fetchTimeseriesData();
-  }, [state.range.start, state.range.end, granularity]);
+  }, [state.range.start, state.range.end, granularity, state.device.join(','), state.channel.join(','), state.refreshToken]);
 
   if (loading) {
     return (
@@ -630,7 +634,14 @@ export function LeadsBlock() {
               </div> */}
             </div>
           </div>
-          {xAxisLabels.length > 0 ? (
+          {timeseriesLoading ? (
+            <div className="h-72 flex items-center justify-center" aria-label="Laddar diagramdata">
+              <div className="animate-pulse text-gray-500 dark:text-gray-400">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-2"></div>
+                <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+              </div>
+            </div>
+          ) : xAxisLabels.length > 0 ? (
             <div className="-ml-1 -mr-1 h-72 overflow-hidden" aria-label="Leads över tid diagram">
               <Chart
                 options={chartOptions}
