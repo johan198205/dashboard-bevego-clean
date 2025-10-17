@@ -22,6 +22,14 @@ export default function Page() {
           compare: 'yoy'
         });
         
+        // Add filters if they exist
+        if (state.channel.length > 0) {
+          params.set('channel', state.channel.join(','));
+        }
+        if (state.device.length > 0) {
+          params.set('device', state.device.join(','));
+        }
+        
         const response = await fetch(`/api/ga4/overview?${params.toString()}`);
         if (response.ok) {
           const data: OverviewPayload = await response.json();
@@ -36,7 +44,7 @@ export default function Page() {
     };
 
     fetchTopPages();
-  }, [range.start, range.end, range.grain]);
+  }, [range.start, range.end, range.grain, state.channel.join(","), state.device.join(",")]);
 
   return (
     <div className="space-y-6">

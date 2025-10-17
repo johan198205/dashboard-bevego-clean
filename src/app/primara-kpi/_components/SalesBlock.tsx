@@ -122,10 +122,27 @@ export function SalesBlock() {
     const fetchTimeseriesData = async () => {
       setTimeseriesLoading(true);
       try {
+        // Build query parameters with filters
+        const params = new URLSearchParams({
+          start: state.range.start,
+          end: state.range.end,
+          grain: granularity
+        });
+        
+        // Add filters if they exist
+        if (state.channel.length > 0) {
+          params.set('channel', state.channel.join(','));
+        }
+        if (state.device.length > 0) {
+          params.set('device', state.device.join(','));
+        }
+        
+        const queryString = params.toString();
+        
         const [purchaseTimeseries, purchaseRevenueTimeseries, returningCustomersTimeseries] = await Promise.all([
-          fetch(`/api/ga4/events?event=purchase&metric=eventCount&start=${state.range.start}&end=${state.range.end}&grain=${granularity}`).then(r => r.json()).catch(() => ({ timeseries: [] })),
-          fetch(`/api/ga4/events?event=purchase&metric=purchaseRevenue&start=${state.range.start}&end=${state.range.end}&grain=${granularity}`).then(r => r.json()).catch(() => ({ timeseries: [] })),
-          fetch(`/api/ga4/events?event=purchase&metric=activeUsers&dimension=newVsReturning&filter=returning&start=${state.range.start}&end=${state.range.end}&grain=${granularity}`).then(r => r.json()).catch(() => ({ timeseries: [] }))
+          fetch(`/api/ga4/events?event=purchase&metric=eventCount&${queryString}`).then(r => r.json()).catch(() => ({ timeseries: [] })),
+          fetch(`/api/ga4/events?event=purchase&metric=purchaseRevenue&${queryString}`).then(r => r.json()).catch(() => ({ timeseries: [] })),
+          fetch(`/api/ga4/events?event=purchase&metric=activeUsers&dimension=newVsReturning&filter=returning&${queryString}`).then(r => r.json()).catch(() => ({ timeseries: [] }))
         ]);
         
         setTimeseriesData({
@@ -141,7 +158,7 @@ export function SalesBlock() {
     };
 
     fetchTimeseriesData();
-  }, [state.range.start, state.range.end, granularity]);
+  }, [state.range.start, state.range.end, granularity, state.channel.join(","), state.device.join(",")]);
 
   if (loading) {
     return (

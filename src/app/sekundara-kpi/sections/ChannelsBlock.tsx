@@ -38,14 +38,12 @@ export default function ChannelsBlock() {
           end: state.range.end,
         });
         
-        // Add device filter if not 'all'
-        if (state.device.length > 0 && !state.device.includes('all')) {
-          qs.set('device', state.device.join(','));
-        }
-        
-        // Add channel filter if not 'all' 
-        if (state.channel.length > 0 && !state.channel.includes('all')) {
+        // Add filters if they exist
+        if (state.channel.length > 0) {
           qs.set('channel', state.channel.join(','));
+        }
+        if (state.device.length > 0) {
+          qs.set('device', state.device.join(','));
         }
         
         // Fetch traffic sources data and other KPIs

@@ -33,17 +33,27 @@ export default function EngagementBlock() {
         const qs = new URLSearchParams({
           start: state.range.start,
           end: state.range.end,
-        }).toString();
+        });
+        
+        // Add filters if they exist
+        if (state.channel.length > 0) {
+          qs.set('channel', state.channel.join(','));
+        }
+        if (state.device.length > 0) {
+          qs.set('device', state.device.join(','));
+        }
+        
+        const queryString = qs.toString();
 
         // Fetch real GA4 data for engagement metrics
         const [eng, totalUsersRes, totalPurchasersRes, klickLogin, newUsersRes, searchUsers, sessionMetrics] = await Promise.all([
-          fetch(`/api/kpi?metric=engagementRate&${qs}`).catch(() => null),
-          fetch(`/api/ga4/total-users?${qs}`).catch(() => null),
-          fetch(`/api/ga4/total-purchasers?${qs}`).catch(() => null),
-          fetch(`/api/ga4/klick-login-users?${qs}`).catch(() => null),
-          fetch(`/api/ga4/new-users?${qs}`).catch(() => null),
-          fetch(`/api/ga4/search-users?${qs}`).catch(() => null),
-          fetch(`/api/ga4/session-metrics?${qs}`).catch(() => null),
+          fetch(`/api/kpi?metric=engagementRate&${queryString}`).catch(() => null),
+          fetch(`/api/ga4/total-users?${queryString}`).catch(() => null),
+          fetch(`/api/ga4/total-purchasers?${queryString}`).catch(() => null),
+          fetch(`/api/ga4/klick-login-users?${queryString}`).catch(() => null),
+          fetch(`/api/ga4/new-users?${queryString}`).catch(() => null),
+          fetch(`/api/ga4/search-users?${queryString}`).catch(() => null),
+          fetch(`/api/ga4/session-metrics?${queryString}`).catch(() => null),
         ]);
 
         if (cancelled) return;

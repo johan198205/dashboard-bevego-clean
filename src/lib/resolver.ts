@@ -93,7 +93,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
               .map((val) => ({
                 filter: {
                   fieldName: "deviceCategory",
-                  stringFilter: { matchType: "EXACT", value: val },
+                  stringFilter: { matchType: "EXACT", value: channelMap[val] || val },
                 },
               })),
           },
@@ -114,7 +114,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
               .map((val) => ({
                 filter: {
                   fieldName: "sessionDefaultChannelGroup",
-                  stringFilter: { matchType: "EXACT", value: val },
+                  stringFilter: { matchType: "EXACT", value: channelMap[val] || val },
                 },
               })),
           },
@@ -263,7 +263,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
               .map((val) => ({
                 filter: {
                   fieldName: "deviceCategory",
-                  stringFilter: { matchType: "EXACT", value: val },
+                  stringFilter: { matchType: "EXACT", value: channelMap[val] || val },
                 },
               })),
           },
@@ -284,7 +284,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
               .map((val) => ({
                 filter: {
                   fieldName: "sessionDefaultChannelGroup",
-                  stringFilter: { matchType: "EXACT", value: val },
+                  stringFilter: { matchType: "EXACT", value: channelMap[val] || val },
                 },
               })),
           },
@@ -571,7 +571,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
               .map((val) => ({
                 filter: {
                   fieldName: "deviceCategory",
-                  stringFilter: { matchType: "EXACT", value: val },
+                  stringFilter: { matchType: "EXACT", value: channelMap[val] || val },
                 },
               })),
           },
@@ -579,12 +579,18 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
         andExpressions.push(deviceExpr);
       }
       if (f?.channel && f.channel.length > 0) {
+        const channelMap: Record<string, string> = {
+          "Direkt": "Direct",
+          "Organiskt": "Organic Search",
+          "Kampanj": "Paid Search",
+          "E-post": "Email",
+        };
         const channelExpr = {
           orGroup: {
             expressions: f.channel.map((val) => ({
               filter: {
                 fieldName: "sessionDefaultChannelGroup",
-                stringFilter: { matchType: "EXACT", value: val },
+                stringFilter: { matchType: "EXACT", value: channelMap[val] || val },
               },
             })),
           },
@@ -683,7 +689,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
               .map((val) => ({
                 filter: {
                   fieldName: "deviceCategory",
-                  stringFilter: { matchType: "EXACT", value: val },
+                  stringFilter: { matchType: "EXACT", value: channelMap[val] || val },
                 },
               })),
           },
@@ -696,7 +702,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
             expressions: f.channel.map((val) => ({
               filter: {
                 fieldName: "sessionDefaultChannelGroup",
-                stringFilter: { matchType: "EXACT", value: val },
+                stringFilter: { matchType: "EXACT", value: channelMap[val] || val },
               },
             })),
           },
@@ -989,7 +995,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
               .map((val) => ({
                 filter: {
                   fieldName: "deviceCategory",
-                  stringFilter: { matchType: "EXACT", value: val },
+                  stringFilter: { matchType: "EXACT", value: channelMap[val] || val },
                 },
               })),
           },
@@ -1002,7 +1008,7 @@ export async function getKpi(params: Params): Promise<KpiResponse> {
             expressions: f.channel.map((val) => ({
               filter: {
                 fieldName: "sessionDefaultChannelGroup",
-                stringFilter: { matchType: "EXACT", value: val },
+                stringFilter: { matchType: "EXACT", value: channelMap[val] || val },
               },
             })),
           },

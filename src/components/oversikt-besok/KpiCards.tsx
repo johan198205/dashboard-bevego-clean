@@ -114,7 +114,9 @@ export function KpiCards({ data, activeSeries, onToggleSeries }: Props) {
   // getSeries provider per metric: fetch timeseries from GA4 API
   const createGetSeries = useMemo(() => (metricKey: string) => {
     return async ({ start, end, filters }: any) => {
-      const params = new URLSearchParams({ start, end, compare: 'none' });
+      // Get comparison mode from global filter state
+      const comparisonMode = filterState.range.comparisonMode || 'yoy';
+      const params = new URLSearchParams({ start, end, compare: comparisonMode });
       if (filters?.channel?.length) params.set('channel', filters.channel.join(','));
       if (filters?.device?.length) {
         const deviceMap: Record<string, string> = { 'Desktop': 'desktop', 'Mobil': 'mobile', 'Surfplatta': 'tablet' };
@@ -142,7 +144,7 @@ export function KpiCards({ data, activeSeries, onToggleSeries }: Props) {
         return { x: date.getTime(), y: value };
       });
     };
-  }, []);
+  }, [filterState.range.comparisonMode]);
 
   // getCompareSeries: fetch comparison period based on comparisonMode
   const createGetCompareSeries = useMemo(() => (metricKey: string) => {

@@ -43,8 +43,16 @@ export function Trends({ data, activeSeries, granularity = 'day', onGranularityC
           start: state.range.start, 
           end: state.range.end, 
           grain: granularity,
-          compare: 'none'
+          compare: state.range.comparisonMode || 'yoy'
         });
+        
+        // Add filters if they exist
+        if (state.channel.length > 0) {
+          params.set('channel', state.channel.join(','));
+        }
+        if (state.device.length > 0) {
+          params.set('device', state.device.join(','));
+        }
         
         const url = `/api/ga4/overview?${params.toString()}`;
         const res = await fetch(url);
@@ -61,7 +69,7 @@ export function Trends({ data, activeSeries, granularity = 'day', onGranularityC
     };
 
     fetchTimeseriesData();
-  }, [state.range.start, state.range.end, granularity]);
+  }, [state.range.start, state.range.end, state.range.comparisonMode, state.channel, state.device, granularity]);
 
   // Helper function to get week number (reused from leads chart)
   const getWeekNumber = (date: Date): number => {
